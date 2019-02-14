@@ -6,3 +6,4 @@ results/
 tests/test_data
 trace.txt*
 timeline.html*
+.Rproj.user
