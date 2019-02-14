@@ -883,9 +883,9 @@ process multiqc {
     file ('samtools/*') from samtools_stats.collect()
     file ('picard/*') from picard_reports.collect()
     file ('deeptools/*') from deepTools_multiqc.collect()
-    file ('phantompeakqualtools/*') from spp_out_mqc.collect()
-    file ('phantompeakqualtools/*') from calculateNSCRSC_results.collect()
-    file ('software_versions/*') from software_versions_yaml.collect()
+    //file ('phantompeakqualtools/*') from spp_out_mqc.collect()
+    //file ('phantompeakqualtools/*') from calculateNSCRSC_results.collect()
+    //file ('software_versions/*') from software_versions_yaml.collect()
 
     output:
     file '*multiqc_report.html' into multiqc_report
