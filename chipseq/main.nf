@@ -532,47 +532,47 @@ process countstat {
  * TODO: The "run_spp.R" script is still missing here!
  */
 
-process phantompeakqualtools {
-    tag "$prefix"
-    publishDir "${params.outdir}/phantompeakqualtools", mode: 'copy',
-                saveAs: {filename -> filename.indexOf(".out") > 0 ? "logs/$filename" : "$filename"}
-
-    input:
-    file bam from bam_dedup_spp
-
-    output:
-    file '*.pdf' into spp_results
-    file '*.spp.out' into spp_out, spp_out_mqc
-
-    script:
-    prefix = bam[0].toString() - ~/(\.dedup)?(\.sorted)?(\.bam)?$/
-    """
-    run_spp.r -c="$bam" -savp -out="${prefix}.spp.out"
-    """
-}
-
+/* process phantompeakqualtools {
+ *  tag "$prefix"
+ *  publishDir "${params.outdir}/phantompeakqualtools", mode: 'copy',
+ *              saveAs: {filename -> filename.indexOf(".out") > 0 ? "logs/$filename" : "$filename"}
+ *
+ *  input:
+ *  file bam from bam_dedup_spp
+ *
+ *  output:
+ *  file '*.pdf' into spp_results
+ *  file '*.spp.out' into spp_out, spp_out_mqc
+ *
+ *  script:
+ *  prefix = bam[0].toString() - ~/(\.dedup)?(\.sorted)?(\.bam)?$/
+ *  """
+ *  run_spp.r -c="$bam" -savp -out="${prefix}.spp.out"
+ *  """
+ *}
+ */
 
 /*
  * STEP 6.2 Combine and calculate NSC & RSC
  */
 
-process calculateNSCRSC {
-    tag "${spp_out_list[0].baseName}"
-    publishDir "${params.outdir}/phantompeakqualtools", mode: 'copy'
-
-    input:
-    file spp_out_list from spp_out.collect()
-
-    output:
-    file 'cross_correlation_processed.txt' into calculateNSCRSC_results
-
-    script:
-    """
-    cat $spp_out_list > cross_correlation.txt
-    calculateNSCRSC.r cross_correlation.txt
-    """
-}
-
+/*process calculateNSCRSC {
+ *  tag "${spp_out_list[0].baseName}"
+ *  publishDir "${params.outdir}/phantompeakqualtools", mode: 'copy'
+ *
+ *  input:
+ *  file spp_out_list from spp_out.collect()
+ *
+ *  output:
+ *  file 'cross_correlation_processed.txt' into calculateNSCRSC_results
+ *
+ *  script:
+ *  """
+ *  cat $spp_out_list > cross_correlation.txt
+ *  calculateNSCRSC.r cross_correlation.txt
+ *  """
+ *}
+ */
 
 /*
  * STEP 7 deepTools
@@ -689,40 +689,40 @@ process deepTools {
  * TODO ngs.plot.R is missing too!
  */
 
-process ngsplot {
-    tag "${input_bam_files[0].baseName}"
-    publishDir "${params.outdir}/ngsplot", mode: 'copy'
-
-    input:
-    file input_bam_files from bam_dedup_ngsplot.collect()
-    file input_bai_files from bai_dedup_ngsplot.collect()
-
-    output:
-    file '*.pdf' into ngsplot_results
-
-    when: REF_ngsplot
-
-    script:
-    """
-    ngs_config_generate.r $input_bam_files
-
-    ngs.plot.r \\
-        -G $REF_ngsplot \\
-        -R genebody \\
-        -C ngsplot_config \\
-        -O Genebody \\
-        -D ensembl \\
-        -FL 300
-
-    ngs.plot.r \\
-        -G $REF_ngsplot \\
-        -R tss \\
-        -C ngsplot_config \\
-        -O TSS \\
-        -FL 300
-    """
-}
-
+/*process ngsplot {
+ *  tag "${input_bam_files[0].baseName}"
+ *  publishDir "${params.outdir}/ngsplot", mode: 'copy'
+ *
+ *  input:
+ *  file input_bam_files from bam_dedup_ngsplot.collect()
+ *  file input_bai_files from bai_dedup_ngsplot.collect()
+ *
+ *  output:
+ *  file '*.pdf' into ngsplot_results
+ *
+ *  when: REF_ngsplot
+ *
+ *  script:
+ *  """
+ *  ngs_config_generate.r $input_bam_files
+ *
+ *  ngs.plot.r \\
+ *      -G $REF_ngsplot \\
+ *      -R genebody \\
+ *      -C ngsplot_config \\
+ *      -O Genebody \\
+ *      -D ensembl \\
+ *      -FL 300
+ *
+ *  ngs.plot.r \\
+ *      -G $REF_ngsplot \\
+ *      -R tss \\
+ *      -C ngsplot_config \\
+ *      -O TSS \\
+ *      -FL 300
+ *  """
+ *}
+ */
 
 /*
  * STEP 9.1 MACS
@@ -844,29 +844,29 @@ process chippeakanno {
 /*
  * Parse software version numbers
  */
-process get_software_versions {
-
-    output:
-    file 'software_versions_mqc.yaml' into software_versions_yaml
-
-    script:
-    """
-    echo ${params.version} > v_ngi_chipseq.txt
-    echo $workflow.nextflow.version > v_nextflow.txt
-    fastqc --version > v_fastqc.txt
-    trim_galore --version > v_trim_galore.txt
-    echo \$(bwa 2>&1) > v_bwa.txt
-    samtools --version > v_samtools.txt
-    bedtools --version > v_bedtools.txt
-    echo "version" \$(java -Xmx2g -jar \$PICARD_HOME/picard.jar MarkDuplicates --version 2>&1) >v_picard.txt
-    echo \$(plotFingerprint --version 2>&1) > v_deeptools.txt
-    echo \$(ngs.plot.r 2>&1) > v_ngsplot.txt
-    echo \$(macs2 --version 2>&1) > v_macs2.txt
-    multiqc --version > v_multiqc.txt
-    scrape_software_versions.py > software_versions_mqc.yaml
-    """
-}
-
+/*process get_software_versions {
+ *
+ *  output:
+ *  file 'software_versions_mqc.yaml' into software_versions_yaml
+ *
+ *  script:
+ *  """
+ *  echo ${params.version} > v_ngi_chipseq.txt
+ *  echo $workflow.nextflow.version > v_nextflow.txt
+ *  fastqc --version > v_fastqc.txt
+ *  trim_galore --version > v_trim_galore.txt
+ *  echo \$(bwa 2>&1) > v_bwa.txt
+ *  samtools --version > v_samtools.txt
+ *  bedtools --version > v_bedtools.txt
+ *  echo "version" \$(java -Xmx2g -jar \$PICARD_HOME/picard.jar MarkDuplicates --version 2>&1) >v_picard.txt
+ *  echo \$(plotFingerprint --version 2>&1) > v_deeptools.txt
+ *  echo \$(ngs.plot.r 2>&1) > v_ngsplot.txt
+ *  echo \$(macs2 --version 2>&1) > v_macs2.txt
+ *  multiqc --version > v_multiqc.txt
+ *  scrape_software_versions.py > software_versions_mqc.yaml
+ *  """
+ *}
+ */
 
 /*
  * STEP 11 MultiQC
