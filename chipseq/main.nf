@@ -437,26 +437,26 @@ process samtools {
  * STEP 3.3 - Statistics about mapped and unmapped reads against ref genome
  */
 
-process bwa_mapped {
-    tag "${input_files[0].baseName}"
-    publishDir "${params.outdir}/bwa/mapped", mode: 'copy'
-
-    input:
-    file input_files from bam_for_mapped.collect()
-    file bai from bai_for_mapped.collect()
-
-    output:
-    file 'mapped_refgenome.txt' into bwa_mapped
-
-    script:
-    """
-    for i in $input_files
-    do
-      samtools idxstats \${i} | awk -v filename="\${i}" '{mapped+=\$3; unmapped+=\$4} END {print filename,"\t",mapped,"\t",unmapped}'
-    done > mapped_refgenome.txt
-    """
-}
-
+/* process bwa_mapped {
+ *   tag "${input_files[0].baseName}"
+ *   publishDir "${params.outdir}/bwa/mapped", mode: 'copy'
+ *
+ *   input:
+ *   file input_files from bam_for_mapped.collect()
+ *   file bai from bai_for_mapped.collect()
+ *
+ *   output:
+ *   file 'mapped_refgenome.txt' into bwa_mapped
+ *
+ *   script:
+ *   """
+ *   for i in $input_files
+ *   do
+ *     samtools idxstats \${i} | awk -v filename="\${i}" '{mapped+=\$3; unmapped+=\$4} END {print filename,"\t",mapped,"\t",unmapped}'
+ *   done > mapped_refgenome.txt
+ *   """
+ *}
+ */
 /*
  * STEP 4 Picard
  */
