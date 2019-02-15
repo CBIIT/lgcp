@@ -490,7 +490,7 @@ process picard {
         }
     }
     """
-    picard MarkDuplicates \\
+    java -Xmx10g -jar $PICARDJARPATH/picard.jar MarkDuplicates \\
         INPUT=$bam \\
         OUTPUT=${prefix}.dedup.bam \\
         ASSUME_SORTED=true \\
