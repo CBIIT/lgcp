@@ -476,21 +476,9 @@ process picard {
 
     script:
     prefix = bam[0].toString() - ~/(\.sorted)?(\.bam)?$/
-    if( task.memory == null ){
-        log.warn "[Picard MarkDuplicates] Available memory not known - defaulting to 6GB ($prefix)"
-        avail_mem = 6000
-    } else {
-        avail_mem = task.memory.toMega()
-        if( avail_mem <= 0){
-            avail_mem = 6000
-            log.warn "[Picard MarkDuplicates] Available memory 0 - defaulting to 6GB ($prefix)"
-        } else if( avail_mem < 250){
-            avail_mem = 250
-            log.warn "[Picard MarkDuplicates] Available memory under 250MB - defaulting to 250MB ($prefix)"
-        }
-    }
+
     """
-    java -Xmx10g -jar $PICARDJARPATH/picard.jar MarkDuplicates \\
+        java -Xmx10g -XX:ParallelGCThreads=5 -jar \$PICARDJARPATH/picard.jar MarkDuplicates \\
         INPUT=$bam \\
         OUTPUT=${prefix}.dedup.bam \\
         ASSUME_SORTED=true \\
