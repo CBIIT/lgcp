@@ -871,7 +871,7 @@ process multiqc {
     file ('trimgalore/*') from trimgalore_results.collect()
     file ('samtools/*') from samtools_stats.collect()
     file ('picard/*') from picard_reports.collect()
-    file ('deeptools/*') from deepTools_multiqc.collect()
+    //file ('deeptools/*') from deepTools_multiqc.collect()
     //file ('phantompeakqualtools/*') from spp_out_mqc.collect()
     //file ('phantompeakqualtools/*') from calculateNSCRSC_results.collect()
     //file ('software_versions/*') from software_versions_yaml.collect()
