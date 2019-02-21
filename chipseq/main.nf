@@ -566,111 +566,111 @@ process countstat {
  * STEP 7 deepTools
  */
 
-process deepTools {
-    tag "${bam[0].baseName}"
-    publishDir "${params.outdir}/deepTools", mode: 'copy'
-
-    input:
-    file bam from bam_dedup_deepTools.collect()
-    file bai from bai_dedup_deepTools.collect()
-
-    output:
-    file '*.{txt,pdf,png,npz,bw}' into deepTools_results
-    file '*.txt' into deepTools_multiqc
-
-    script:
-    if (!params.singleEnd) {
-        """
-        bamPEFragmentSize \\
-            --binSize 1000 \\
-            --bamfiles $bam \\
-            --histogram fragment_length_distribution_histogram.png \\
-            --plotTitle "Fragment Length Distribution"
-        """
-    }
-    if(bam instanceof Path){
-        log.warn("Only 1 BAM file - skipping multiBam deepTool steps")
-        """
-        plotFingerprint \\
-            -b $bam \\
-            --plotFile ${bam.baseName}_fingerprints.pdf \\
-            --outRawCounts ${bam.baseName}_fingerprint.txt \\
-            --extendReads ${params.extendReadsLen} \\
-            --skipZeros \\
-            --ignoreDuplicates \\
-            --numberOfSamples 50000 \\
-            --binSize 500 \\
-            --plotFileFormat pdf \\
-            --plotTitle "${bam.baseName} Fingerprints"
-
-        bamCoverage \\
-           -b $bam \\
-           --extendReads ${params.extendReadsLen} \\
-           --normalizeUsing RPKM \\
-           -o ${bam}.bw
-        """
-    } else {
-        """
-        plotFingerprint \\
-            -b $bam \\
-            --plotFile fingerprints.pdf \\
-            --outRawCounts fingerprint.txt \\
-            --extendReads ${params.extendReadsLen} \\
-            --skipZeros \\
-            --ignoreDuplicates \\
-            --numberOfSamples 50000 \\
-            --binSize 500 \\
-            --plotFileFormat pdf \\
-            --plotTitle "Fingerprints"
-
-        for bamfile in ${bam}
-        do
-            bamCoverage \\
-              -b \$bamfile \\
-              --extendReads ${params.extendReadsLen} \\
-              --normalizeUsing RPKM \\
-              -o \${bamfile}.bw
-        done
-
-        multiBamSummary \\
-            bins \\
-            --binSize 10000 \\
-            --bamfiles $bam \\
-            -out multiBamSummary.npz \\
-            --extendReads ${params.extendReadsLen} \\
-            --ignoreDuplicates \\
-            --centerReads
-
-        plotCorrelation \\
-            -in multiBamSummary.npz \\
-            -o scatterplot_PearsonCorr_multiBamSummary.png \\
-            --outFileCorMatrix scatterplot_PearsonCorr_multiBamSummary.txt \\
-            --corMethod pearson \\
-            --skipZeros \\
-            --removeOutliers \\
-            --plotTitle "Pearson Correlation of Read Counts" \\
-            --whatToPlot scatterplot
-
-        plotCorrelation \\
-            -in multiBamSummary.npz \\
-            -o heatmap_SpearmanCorr_multiBamSummary.png \\
-            --outFileCorMatrix heatmap_SpearmanCorr_multiBamSummary.txt \\
-            --corMethod spearman \\
-            --skipZeros \\
-            --plotTitle "Spearman Correlation of Read Counts" \\
-            --whatToPlot heatmap \\
-            --colorMap RdYlBu \\
-            --plotNumbers
-
-        plotPCA \\
-            -in multiBamSummary.npz \\
-            -o pcaplot_multiBamSummary.png \\
-            --plotTitle "Principal Component Analysis Plot" \\
-            --outFileNameData pcaplot_multiBamSummary.txt
-        """
-    }
-}
-
+/*process deepTools {
+ *   tag "${bam[0].baseName}"
+ *   publishDir "${params.outdir}/deepTools", mode: 'copy'
+ *
+ *   input:
+ *   file bam from bam_dedup_deepTools.collect()
+ *   file bai from bai_dedup_deepTools.collect()
+ *
+ *   output:
+ *   file '*.{txt,pdf,png,npz,bw}' into deepTools_results
+ *   file '*.txt' into deepTools_multiqc
+ *
+ *   script:
+ *   if (!params.singleEnd) {
+ *       """
+ *       bamPEFragmentSize \\
+ *           --binSize 1000 \\
+ *           --bamfiles $bam \\
+ *           --histogram fragment_length_distribution_histogram.png \\
+ *           --plotTitle "Fragment Length Distribution"
+ *       """
+ *   }
+ *   if(bam instanceof Path){
+ *       log.warn("Only 1 BAM file - skipping multiBam deepTool steps")
+ *       """
+ *       plotFingerprint \\
+ *           -b $bam \\
+ *           --plotFile ${bam.baseName}_fingerprints.pdf \\
+ *           --outRawCounts ${bam.baseName}_fingerprint.txt \\
+ *           --extendReads ${params.extendReadsLen} \\
+ *           --skipZeros \\
+ *           --ignoreDuplicates \\
+ *           --numberOfSamples 50000 \\
+ *           --binSize 500 \\
+ *           --plotFileFormat pdf \\
+ *           --plotTitle "${bam.baseName} Fingerprints"
+ *
+ *       bamCoverage \\
+ *          -b $bam \\
+ *          --extendReads ${params.extendReadsLen} \\
+ *          --normalizeUsing RPKM \\
+ *          -o ${bam}.bw
+ *       """
+ *   } else {
+ *       """
+ *       plotFingerprint \\
+ *           -b $bam \\
+ *           --plotFile fingerprints.pdf \\
+ *           --outRawCounts fingerprint.txt \\
+ *           --extendReads ${params.extendReadsLen} \\
+ *           --skipZeros \\
+ *           --ignoreDuplicates \\
+ *           --numberOfSamples 50000 \\
+ *           --binSize 500 \\
+ *           --plotFileFormat pdf \\
+ *           --plotTitle "Fingerprints"
+ *
+ *       for bamfile in ${bam}
+ *       do
+ *           bamCoverage \\
+ *             -b \$bamfile \\
+ *             --extendReads ${params.extendReadsLen} \\
+ *             --normalizeUsing RPKM \\
+ *             -o \${bamfile}.bw
+ *       done
+ *
+ *       multiBamSummary \\
+ *           bins \\
+ *           --binSize 10000 \\
+ *           --bamfiles $bam \\
+ *           -out multiBamSummary.npz \\
+ *           --extendReads ${params.extendReadsLen} \\
+ *           --ignoreDuplicates \\
+ *           --centerReads
+ *
+ *       plotCorrelation \\
+ *           -in multiBamSummary.npz \\
+ *           -o scatterplot_PearsonCorr_multiBamSummary.png \\
+ *           --outFileCorMatrix scatterplot_PearsonCorr_multiBamSummary.txt \\
+ *           --corMethod pearson \\
+ *           --skipZeros \\
+ *           --removeOutliers \\
+ *           --plotTitle "Pearson Correlation of Read Counts" \\
+ *           --whatToPlot scatterplot
+ *
+ *       plotCorrelation \\
+ *           -in multiBamSummary.npz \\
+ *           -o heatmap_SpearmanCorr_multiBamSummary.png \\
+ *           --outFileCorMatrix heatmap_SpearmanCorr_multiBamSummary.txt \\
+ *           --corMethod spearman \\
+ *           --skipZeros \\
+ *           --plotTitle "Spearman Correlation of Read Counts" \\
+ *           --whatToPlot heatmap \\
+ *           --colorMap RdYlBu \\
+ *           --plotNumbers
+ *
+ *       plotPCA \\
+ *           -in multiBamSummary.npz \\
+ *           -o pcaplot_multiBamSummary.png \\
+ *           --plotTitle "Principal Component Analysis Plot" \\
+ *           --outFileNameData pcaplot_multiBamSummary.txt
+ *       """
+ *   }
+ *}
+ */
 
 /*
  * STEP 8 Ngsplot
