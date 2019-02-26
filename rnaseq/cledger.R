@@ -35,9 +35,11 @@ if(args$`--version` == T){ # returns version if version is requested
   if(args$`--normalize`){
     dir_name <- args$RSEM
     file_names <- list.files(path = dir_name,
-                             pattern = ".genes.results$",
-                             full.names = T)
+                             pattern = ".genes.results$|.genes.results.gz$",
+                             full.names = T,
+                             recursive = T)
     txi <- tximport(file_names, type = "rsem", txIn = FALSE, txOut = FALSE)
+    txi$length[txi$length == 0] <- 1
     
     cts <- txi$counts
     normMat <- txi$length
@@ -51,6 +53,8 @@ if(args$`--version` == T){ # returns version if version is requested
     y <- y[keep, ]
     file_out <- args$OUT
     cpm(y, log = T) %>%
+      as.data.frame() %>%
+      rownames_to_column("gene_id") %>%
       write_csv(file_out)
   }else{
     cat(paste(c("\nERROR:","\nCommand not found"), collapse = "\n"), "\n")  
