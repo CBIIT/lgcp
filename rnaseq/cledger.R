@@ -77,6 +77,8 @@ if(args$`--version` == T){ # returns version if version is requested
     # filtering
     keep <- filterByExpr(y)
     y <- y[keep, ]
+    # normalize
+    y <- calcNormFactors(y)
     file_out <- args$OUT
     # write out transformed CPM values
     cpm(y, log = T) %>%
