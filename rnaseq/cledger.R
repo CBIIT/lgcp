@@ -82,7 +82,7 @@ if(args$`--version` == T){ # returns version if version is requested
     cpm(y, log = T) %>%
       as.data.frame() %>%
       rownames_to_column("gene_id") %>%
-      setNames("gene_id", new_col_names) %>%
+      setNames(c("gene_id", new_col_names)) %>%
       write_csv(file_out)
   }else{
     cat(paste(c("\nERROR:","\nCommand not found"), collapse = "\n"), "\n")  
