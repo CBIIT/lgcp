@@ -520,197 +520,197 @@ process countstat {
  * TODO: The "run_spp.R" script is still missing here!
  */
 
-/* process phantompeakqualtools {
- *  tag "$prefix"
- *  publishDir "${params.outdir}/phantompeakqualtools", mode: 'copy',
- *              saveAs: {filename -> filename.indexOf(".out") > 0 ? "logs/$filename" : "$filename"}
- *
- *  input:
- *  file bam from bam_dedup_spp
- *
- *  output:
- *  file '*.pdf' into spp_results
- *  file '*.spp.out' into spp_out, spp_out_mqc
- *
- *  script:
- *  prefix = bam[0].toString() - ~/(\.dedup)?(\.sorted)?(\.bam)?$/
- *  """
- *  run_spp.r -c="$bam" -savp -out="${prefix}.spp.out"
- *  """
- *}
- */
+process phantompeakqualtools {
+  tag "$prefix"
+  publishDir "${params.outdir}/phantompeakqualtools", mode: 'copy',
+              saveAs: {filename -> filename.indexOf(".out") > 0 ? "logs/$filename" : "$filename"}
+
+  input:
+  file bam from bam_dedup_spp
+
+  output:
+  file '*.pdf' into spp_results
+  file '*.spp.out' into spp_out, spp_out_mqc
+
+  script:
+  prefix = bam[0].toString() - ~/(\.dedup)?(\.sorted)?(\.bam)?$/
+  """
+  run_spp.r -c="$bam" -savp -out="${prefix}.spp.out"
+  """
+}
+
 
 /*
  * STEP 6.2 Combine and calculate NSC & RSC
  */
 
-/*process calculateNSCRSC {
- *  tag "${spp_out_list[0].baseName}"
- *  publishDir "${params.outdir}/phantompeakqualtools", mode: 'copy'
- *
- *  input:
- *  file spp_out_list from spp_out.collect()
- *
- *  output:
- *  file 'cross_correlation_processed.txt' into calculateNSCRSC_results
- *
- *  script:
- *  """
- *  cat $spp_out_list > cross_correlation.txt
- *  calculateNSCRSC.r cross_correlation.txt
- *  """
- *}
- */
+process calculateNSCRSC {
+  tag "${spp_out_list[0].baseName}"
+  publishDir "${params.outdir}/phantompeakqualtools", mode: 'copy'
+
+  input:
+  file spp_out_list from spp_out.collect()
+
+  output:
+  file 'cross_correlation_processed.txt' into calculateNSCRSC_results
+
+  script:
+  """
+  cat $spp_out_list > cross_correlation.txt
+  calculateNSCRSC.r cross_correlation.txt
+  """
+}
+
 
 /*
  * STEP 7 deepTools
  */
 
-/*process deepTools {
- *   tag "${bam[0].baseName}"
- *   publishDir "${params.outdir}/deepTools", mode: 'copy'
- *
- *   input:
- *   file bam from bam_dedup_deepTools.collect()
- *   file bai from bai_dedup_deepTools.collect()
- *
- *   output:
- *   file '*.{txt,pdf,png,npz,bw}' into deepTools_results
- *   file '*.txt' into deepTools_multiqc
- *
- *   script:
- *   if (!params.singleEnd) {
- *       """
- *       bamPEFragmentSize \\
- *           --binSize 1000 \\
- *           --bamfiles $bam \\
- *           --histogram fragment_length_distribution_histogram.png \\
- *           --plotTitle "Fragment Length Distribution"
- *       """
- *   }
- *   if(bam instanceof Path){
- *       log.warn("Only 1 BAM file - skipping multiBam deepTool steps")
- *       """
- *       plotFingerprint \\
- *           -b $bam \\
- *           --plotFile ${bam.baseName}_fingerprints.pdf \\
- *           --outRawCounts ${bam.baseName}_fingerprint.txt \\
- *           --extendReads ${params.extendReadsLen} \\
- *           --skipZeros \\
- *           --ignoreDuplicates \\
- *           --numberOfSamples 50000 \\
- *           --binSize 500 \\
- *           --plotFileFormat pdf \\
- *           --plotTitle "${bam.baseName} Fingerprints"
- *
- *       bamCoverage \\
- *          -b $bam \\
- *          --extendReads ${params.extendReadsLen} \\
- *          --normalizeUsing RPKM \\
- *          -o ${bam}.bw
- *       """
- *   } else {
- *       """
- *       plotFingerprint \\
- *           -b $bam \\
- *           --plotFile fingerprints.pdf \\
- *           --outRawCounts fingerprint.txt \\
- *           --extendReads ${params.extendReadsLen} \\
- *           --skipZeros \\
- *           --ignoreDuplicates \\
- *           --numberOfSamples 50000 \\
- *           --binSize 500 \\
- *           --plotFileFormat pdf \\
- *           --plotTitle "Fingerprints"
- *
- *       for bamfile in ${bam}
- *       do
- *           bamCoverage \\
- *             -b \$bamfile \\
- *             --extendReads ${params.extendReadsLen} \\
- *             --normalizeUsing RPKM \\
- *             -o \${bamfile}.bw
- *       done
- *
- *       multiBamSummary \\
- *           bins \\
- *           --binSize 10000 \\
- *           --bamfiles $bam \\
- *           -out multiBamSummary.npz \\
- *           --extendReads ${params.extendReadsLen} \\
- *           --ignoreDuplicates \\
- *           --centerReads
- *
- *       plotCorrelation \\
- *           -in multiBamSummary.npz \\
- *           -o scatterplot_PearsonCorr_multiBamSummary.png \\
- *           --outFileCorMatrix scatterplot_PearsonCorr_multiBamSummary.txt \\
- *           --corMethod pearson \\
- *           --skipZeros \\
- *           --removeOutliers \\
- *           --plotTitle "Pearson Correlation of Read Counts" \\
- *           --whatToPlot scatterplot
- *
- *       plotCorrelation \\
- *           -in multiBamSummary.npz \\
- *           -o heatmap_SpearmanCorr_multiBamSummary.png \\
- *           --outFileCorMatrix heatmap_SpearmanCorr_multiBamSummary.txt \\
- *           --corMethod spearman \\
- *           --skipZeros \\
- *           --plotTitle "Spearman Correlation of Read Counts" \\
- *           --whatToPlot heatmap \\
- *           --colorMap RdYlBu \\
- *           --plotNumbers
- *
- *       plotPCA \\
- *           -in multiBamSummary.npz \\
- *           -o pcaplot_multiBamSummary.png \\
- *           --plotTitle "Principal Component Analysis Plot" \\
- *           --outFileNameData pcaplot_multiBamSummary.txt
- *       """
- *   }
- *}
- */
+process deepTools {
+   tag "${bam[0].baseName}"
+   publishDir "${params.outdir}/deepTools", mode: 'copy'
+
+   input:
+   file bam from bam_dedup_deepTools.collect()
+   file bai from bai_dedup_deepTools.collect()
+
+   output:
+   file '*.{txt,pdf,png,npz,bw}' into deepTools_results
+   file '*.txt' into deepTools_multiqc
+
+   script:
+   if (!params.singleEnd) {
+       """
+       bamPEFragmentSize \\
+           --binSize 1000 \\
+           --bamfiles $bam \\
+           --histogram fragment_length_distribution_histogram.png \\
+           --plotTitle "Fragment Length Distribution"
+       """
+   }
+   if(bam instanceof Path){
+       log.warn("Only 1 BAM file - skipping multiBam deepTool steps")
+       """
+       plotFingerprint \\
+           -b $bam \\
+           --plotFile ${bam.baseName}_fingerprints.pdf \\
+           --outRawCounts ${bam.baseName}_fingerprint.txt \\
+           --extendReads ${params.extendReadsLen} \\
+           --skipZeros \\
+           --ignoreDuplicates \\
+           --numberOfSamples 50000 \\
+           --binSize 500 \\
+           --plotFileFormat pdf \\
+           --plotTitle "${bam.baseName} Fingerprints"
+
+       bamCoverage \\
+          -b $bam \\
+          --extendReads ${params.extendReadsLen} \\
+          --normalizeUsing RPKM \\
+          -o ${bam}.bw
+       """
+   } else {
+       """
+       plotFingerprint \\
+           -b $bam \\
+           --plotFile fingerprints.pdf \\
+           --outRawCounts fingerprint.txt \\
+           --extendReads ${params.extendReadsLen} \\
+           --skipZeros \\
+           --ignoreDuplicates \\
+           --numberOfSamples 50000 \\
+           --binSize 500 \\
+           --plotFileFormat pdf \\
+           --plotTitle "Fingerprints"
+
+       for bamfile in ${bam}
+       do
+           bamCoverage \\
+             -b \$bamfile \\
+             --extendReads ${params.extendReadsLen} \\
+             --normalizeUsing RPKM \\
+             -o \${bamfile}.bw
+       done
+
+       multiBamSummary \\
+           bins \\
+           --binSize 10000 \\
+           --bamfiles $bam \\
+           -out multiBamSummary.npz \\
+           --extendReads ${params.extendReadsLen} \\
+           --ignoreDuplicates \\
+           --centerReads
+
+       plotCorrelation \\
+           -in multiBamSummary.npz \\
+           -o scatterplot_PearsonCorr_multiBamSummary.png \\
+           --outFileCorMatrix scatterplot_PearsonCorr_multiBamSummary.txt \\
+           --corMethod pearson \\
+           --skipZeros \\
+           --removeOutliers \\
+           --plotTitle "Pearson Correlation of Read Counts" \\
+           --whatToPlot scatterplot
+
+       plotCorrelation \\
+           -in multiBamSummary.npz \\
+           -o heatmap_SpearmanCorr_multiBamSummary.png \\
+           --outFileCorMatrix heatmap_SpearmanCorr_multiBamSummary.txt \\
+           --corMethod spearman \\
+           --skipZeros \\
+           --plotTitle "Spearman Correlation of Read Counts" \\
+           --whatToPlot heatmap \\
+           --colorMap RdYlBu \\
+           --plotNumbers
+
+       plotPCA \\
+           -in multiBamSummary.npz \\
+           -o pcaplot_multiBamSummary.png \\
+           --plotTitle "Principal Component Analysis Plot" \\
+           --outFileNameData pcaplot_multiBamSummary.txt
+       """
+   }
+}
+
 
 /*
  * STEP 8 Ngsplot
  * TODO ngs.plot.R is missing too!
  */
 
-/*process ngsplot {
- *  tag "${input_bam_files[0].baseName}"
- *  publishDir "${params.outdir}/ngsplot", mode: 'copy'
- *
- *  input:
- *  file input_bam_files from bam_dedup_ngsplot.collect()
- *  file input_bai_files from bai_dedup_ngsplot.collect()
- *
- *  output:
- *  file '*.pdf' into ngsplot_results
- *
- *  when: REF_ngsplot
- *
- *  script:
- *  """
- *  ngs_config_generate.r $input_bam_files
- *
- *  ngs.plot.r \\
- *      -G $REF_ngsplot \\
- *      -R genebody \\
- *      -C ngsplot_config \\
- *      -O Genebody \\
- *      -D ensembl \\
- *      -FL 300
- *
- *  ngs.plot.r \\
- *      -G $REF_ngsplot \\
- *      -R tss \\
- *      -C ngsplot_config \\
- *      -O TSS \\
- *      -FL 300
- *  """
- *}
- */
+process ngsplot {
+  tag "${input_bam_files[0].baseName}"
+  publishDir "${params.outdir}/ngsplot", mode: 'copy'
+
+  input:
+  file input_bam_files from bam_dedup_ngsplot.collect()
+  file input_bai_files from bai_dedup_ngsplot.collect()
+
+  output:
+  file '*.pdf' into ngsplot_results
+
+  when: REF_ngsplot
+
+  script:
+  """
+  ngs_config_generate.r $input_bam_files
+
+  ngs.plot.r \\
+      -G $REF_ngsplot \\
+      -R genebody \\
+      -C ngsplot_config \\
+      -O Genebody \\
+      -D ensembl \\
+      -FL 300
+
+  ngs.plot.r \\
+      -G $REF_ngsplot \\
+      -R tss \\
+      -C ngsplot_config \\
+      -O TSS \\
+      -FL 300
+  """
+}
+
 
 /*
  * STEP 9.1 MACS
@@ -809,26 +809,26 @@ if (params.saturation) {
  * STEP 10 Post peak calling processing
  */
 
-/*process chippeakanno {
- *   tag "${macs_peaks_collection[0].baseName}"
- *   publishDir "${params.outdir}/macs/chippeakanno", mode: 'copy'
- *
- *   input:
- *   file macs_peaks_collection from macs_peaks.collect()
- *   file gtf from gtf
- *
- *   output:
- *   file '*.{txt,bed}' into chippeakanno_results
- *
- *   when: REF_macs
- *
- *   script:
- *   filtering = params.blacklist_filtering ? "${params.blacklist}" : "No-filtering"
- *   """
- *   post_peak_calling_processing.r $params.rlocation $REF_macs $filtering $gtf $macs_peaks_collection
- *   """
- *}
- */
+process chippeakanno {
+   tag "${macs_peaks_collection[0].baseName}"
+   publishDir "${params.outdir}/macs/chippeakanno", mode: 'copy'
+
+   input:
+   file macs_peaks_collection from macs_peaks.collect()
+   file gtf from gtf
+
+   output:
+   file '*.{txt,bed}' into chippeakanno_results
+
+   when: REF_macs
+
+   script:
+   filtering = params.blacklist_filtering ? "${params.blacklist}" : "No-filtering"
+   """
+   post_peak_calling_processing.r $params.rlocation $REF_macs $filtering $gtf $macs_peaks_collection
+   """
+}
+
 
 /*
  * Parse software version numbers
