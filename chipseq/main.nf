@@ -520,25 +520,25 @@ process countstat {
  * TODO: The "run_spp.R" script is still missing here!
  */
 
-/*process phantompeakqualtools {
- * tag "$prefix"
- * publishDir "${params.outdir}/phantompeakqualtools", mode: 'copy',
- *             saveAs: {filename -> filename.indexOf(".out") > 0 ? "logs/$filename" : "$filename"}
- *
- * input:
- * file bam from bam_dedup_spp
- *
- * output:
- * file '*.pdf' into spp_results
- * file '*.spp.out' into spp_out, spp_out_mqc
- *
- * script:
- * prefix = bam[0].toString() - ~/(\.dedup)?(\.sorted)?(\.bam)?$/
- * """
- * run_spp.r -c="$bam" -savp -out="${prefix}.spp.out"
- * """
- *}
- */
+process phantompeakqualtools {
+  tag "$prefix"
+  publishDir "${params.outdir}/phantompeakqualtools", mode: 'copy',
+              saveAs: {filename -> filename.indexOf(".out") > 0 ? "logs/$filename" : "$filename"}
+ 
+  input:
+  file bam from bam_dedup_spp
+ 
+  output:
+  file '*.pdf' into spp_results
+  file '*.spp.out' into spp_out, spp_out_mqc
+ 
+  script:
+  prefix = bam[0].toString() - ~/(\.dedup)?(\.sorted)?(\.bam)?$/
+  """
+  run_spp.r -c="$bam" -savp -out="${prefix}.spp.out"
+  """
+ }
+
 
 /*
  * STEP 6.2 Combine and calculate NSC & RSC
