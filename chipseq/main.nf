@@ -520,25 +520,25 @@ process countstat {
  * TODO: The "run_spp.R" script is still missing here!
  */
 
-process phantompeakqualtools {
-  tag "$prefix"
-  publishDir "${params.outdir}/phantompeakqualtools", mode: 'copy',
-              saveAs: {filename -> filename.indexOf(".out") > 0 ? "logs/$filename" : "$filename"}
-
-  input:
-  file bam from bam_dedup_spp
-
-  output:
-  file '*.pdf' into spp_results
-  file '*.spp.out' into spp_out, spp_out_mqc
-
-  script:
-  prefix = bam[0].toString() - ~/(\.dedup)?(\.sorted)?(\.bam)?$/
-  """
-  run_spp.r -c="$bam" -savp -out="${prefix}.spp.out"
-  """
-}
-
+/*process phantompeakqualtools {
+ * tag "$prefix"
+ * publishDir "${params.outdir}/phantompeakqualtools", mode: 'copy',
+ *             saveAs: {filename -> filename.indexOf(".out") > 0 ? "logs/$filename" : "$filename"}
+ *
+ * input:
+ * file bam from bam_dedup_spp
+ *
+ * output:
+ * file '*.pdf' into spp_results
+ * file '*.spp.out' into spp_out, spp_out_mqc
+ *
+ * script:
+ * prefix = bam[0].toString() - ~/(\.dedup)?(\.sorted)?(\.bam)?$/
+ * """
+ * run_spp.r -c="$bam" -savp -out="${prefix}.spp.out"
+ * """
+ *}
+ */
 
 /*
  * STEP 6.2 Combine and calculate NSC & RSC
@@ -547,19 +547,19 @@ process phantompeakqualtools {
 process calculateNSCRSC {
   tag "${spp_out_list[0].baseName}"
   publishDir "${params.outdir}/phantompeakqualtools", mode: 'copy'
-
+ 
   input:
   file spp_out_list from spp_out.collect()
-
+ 
   output:
   file 'cross_correlation_processed.txt' into calculateNSCRSC_results
-
+ 
   script:
   """
   cat $spp_out_list > cross_correlation.txt
   calculateNSCRSC.r cross_correlation.txt
   """
-}
+ }
 
 
 /*
@@ -871,9 +871,9 @@ process multiqc {
     file ('trimgalore/*') from trimgalore_results.collect()
     file ('samtools/*') from samtools_stats.collect()
     file ('picard/*') from picard_reports.collect()
-    //file ('deeptools/*') from deepTools_multiqc.collect()
-    //file ('phantompeakqualtools/*') from spp_out_mqc.collect()
-    //file ('phantompeakqualtools/*') from calculateNSCRSC_results.collect()
+    file ('deeptools/*') from deepTools_multiqc.collect()
+    file ('phantompeakqualtools/*') from spp_out_mqc.collect()
+    file ('phantompeakqualtools/*') from calculateNSCRSC_results.collect()
     //file ('software_versions/*') from software_versions_yaml.collect()
 
     output:
