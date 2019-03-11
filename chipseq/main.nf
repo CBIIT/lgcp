@@ -785,25 +785,26 @@ if (params.saturation) {
  * STEP 10 Post peak calling processing
  */
 
-process chippeakanno {
-   tag "${macs_peaks_collection[0].baseName}"
-   publishDir "${params.outdir}/macs/chippeakanno", mode: 'copy'
-
-   input:
-   file macs_peaks_collection from macs_peaks.collect()
-   file gtf from gtf
-
-   output:
-   file '*.{txt,bed}' into chippeakanno_results
-
-   when: REF_macs
-
-   script:
-   filtering = params.blacklist_filtering ? "${params.blacklist}" : "No-filtering"
-   """
-   post_peak_calling_processing.r $params.rlocation $REF_macs $filtering $gtf $macs_peaks_collection
-   """
-}
+/*process chippeakanno {
+ *  tag "${macs_peaks_collection[0].baseName}"
+ *  publishDir "${params.outdir}/macs/chippeakanno", mode: 'copy'
+ *
+ *  input:
+ *  file macs_peaks_collection from macs_peaks.collect()
+ *  file gtf from gtf
+ *
+ *  output:
+ *  file '*.{txt,bed}' into chippeakanno_results
+ *
+ *  when: REF_macs
+ *
+ *  script:
+ *  filtering = params.blacklist_filtering ? "${params.blacklist}" : "No-filtering"
+ *  """
+ *  post_peak_calling_processing.r $params.rlocation $REF_macs $filtering $gtf $macs_peaks_collection
+ *  """
+ *}
+ */
 
 
 /*
