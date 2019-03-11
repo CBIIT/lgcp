@@ -591,18 +591,6 @@ process deepTools {
    if(bam instanceof Path){
        log.warn("Only 1 BAM file - skipping multiBam deepTool steps")
        """
-       plotFingerprint \\
-           -b $bam \\
-           --plotFile ${bam.baseName}_fingerprints.pdf \\
-           --outRawCounts ${bam.baseName}_fingerprint.txt \\
-           --extendReads ${params.extendReadsLen} \\
-           --skipZeros \\
-           --ignoreDuplicates \\
-           --numberOfSamples 50000 \\
-           --binSize 500 \\
-           --plotFileFormat pdf \\
-           --plotTitle "${bam.baseName} Fingerprints"
-
        bamCoverage \\
           -b $bam \\
           --extendReads ${params.extendReadsLen} \\
@@ -611,18 +599,6 @@ process deepTools {
        """
    } else {
        """
-       plotFingerprint \\
-           -b $bam \\
-           --plotFile fingerprints.pdf \\
-           --outRawCounts fingerprint.txt \\
-           --extendReads ${params.extendReadsLen} \\
-           --skipZeros \\
-           --ignoreDuplicates \\
-           --numberOfSamples 50000 \\
-           --binSize 500 \\
-           --plotFileFormat pdf \\
-           --plotTitle "Fingerprints"
-
        for bamfile in ${bam}
        do
            bamCoverage \\
