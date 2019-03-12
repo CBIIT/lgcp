@@ -14,8 +14,8 @@ Description:   This program is a command line interface to edgeR
 Options:
 
 --version                  Show the current version.
---normalize_RSEM Perform   filtering and TMM normalization on RSEM quantified RNA seq data
---normalize_featureCounts  filtering and TMM normalization on featureCounts quantified RNA seq data
+--normalize_RSEM           Perform filtering and TMM normalization on RSEM quantified RNA seq data
+--normalize_featureCounts  Perform filtering and TMM normalization on featureCounts quantified RNA seq data
 
 Arguments:
 
@@ -34,7 +34,7 @@ if(args$`--version` == T){ # returns version if version is requested
   library(tidyverse)
   library(tximport)
   
-  if(args$`--normalize_RSEM`){ # still experimental
+  if(args$`--normalize_RSEM` == T){ # still experimental
     # grab directory from command line argument
     dir_name <- args$DIR
     # recursively list all rsem output files in the directories
@@ -88,7 +88,7 @@ if(args$`--version` == T){ # returns version if version is requested
       rownames_to_column("gene_id") %>%
       setNames(c("gene_id", new_col_names)) %>%
       write_csv(file_out)
-  }else if (args$`--normalize_featureCounts`){
+  }else if (args$`--normalize_featureCounts` == T){
     dir_name <- args$DIR
     # recursively list all rsem output files in the directories
     file_names <- list.files(path = dir_name,
@@ -100,8 +100,11 @@ if(args$`--version` == T){ # returns version if version is requested
       purrr::reduce(left_join)
     
     # construct edger object
-    y <- DGEList(cts)
-    y <- scaleOffset(y, t(t(log(normMat)) + o))
+    y <- DGEList(counts = cts %>%
+                   dplyr::select(ends_with("sortedByCoord.out.bam")),
+                 genes = cts$Geneid,
+                 remove.zeros = T)
+    
     # filtering
     keep <- filterByExpr(y)
     y <- y[keep, ]
@@ -111,8 +114,7 @@ if(args$`--version` == T){ # returns version if version is requested
     # write out transformed CPM values
     cpm(y, log = T) %>%
       as.data.frame() %>%
-      rownames_to_column("gene_id") %>%
-      setNames(c("gene_id", new_col_names)) %>%
+      bind_cols(y$genes, .) %>%
       write_csv(file_out)
   }else{
     cat(paste(c("\nERROR:","\nCommand not found"), collapse = "\n"), "\n")  
