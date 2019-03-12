@@ -6,14 +6,16 @@ require(methods)
 "
 Usage:
 cledger.R (-h | --help | --version)
-cledger.R --normalize RSEM OUT
+cledger.R --normalize_RSEM DIR OUT
+cledger.R --normalize_featureCounts DIR OUT
 
 Description:   This program is a command line interface to edgeR
 
 Options:
 
---version   Show the current version.
---normalize Perform filtering and TMM normalization on quantified RNA seq data
+--version                  Show the current version.
+--normalize_RSEM Perform   filtering and TMM normalization on RSEM quantified RNA seq data
+--normalize_featureCounts  filtering and TMM normalization on featureCounts quantified RNA seq data
 
 Arguments:
 
@@ -32,9 +34,9 @@ if(args$`--version` == T){ # returns version if version is requested
   library(tidyverse)
   library(tximport)
   
-  if(args$`--normalize`){
+  if(args$`--normalize_RSEM`){ # still experimental
     # grab directory from command line argument
-    dir_name <- args$RSEM
+    dir_name <- args$DIR
     # recursively list all rsem output files in the directories
     file_names <- list.files(path = dir_name,
                              pattern = ".genes.results$|.genes.results.gz$",
@@ -71,6 +73,32 @@ if(args$`--version` == T){ # returns version if version is requested
     normMat <- normMat/exp(rowMeans(log(normMat)))
     
     o <- log(calcNormFactors(cts/normMat)) + log(colSums(cts/normMat))
+    # construct edger object
+    y <- DGEList(cts)
+    y <- scaleOffset(y, t(t(log(normMat)) + o))
+    # filtering
+    keep <- filterByExpr(y)
+    y <- y[keep, ]
+    # normalize
+    y <- calcNormFactors(y)
+    file_out <- args$OUT
+    # write out transformed CPM values
+    cpm(y, log = T) %>%
+      as.data.frame() %>%
+      rownames_to_column("gene_id") %>%
+      setNames(c("gene_id", new_col_names)) %>%
+      write_csv(file_out)
+  }else if (args$`--normalize_featureCounts`){
+    dir_name <- args$DIR
+    # recursively list all rsem output files in the directories
+    file_names <- list.files(path = dir_name,
+                             pattern = ".txt$",
+                             full.names = T,
+                             recursive = F)
+    
+    cts <- map(as.character(file_names), read_tsv, skip = 1) %>%
+      purrr::reduce(left_join)
+    
     # construct edger object
     y <- DGEList(cts)
     y <- scaleOffset(y, t(t(log(normMat)) + o))
