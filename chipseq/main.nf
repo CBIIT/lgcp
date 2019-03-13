@@ -608,42 +608,6 @@ process deepTools {
              -o \${bamfile}.bw
        done
 
-/*       multiBamSummary \\
- *          bins \\
- *          --binSize 10000 \\
- *          --bamfiles $bam \\
- *          -out multiBamSummary.npz \\
- *          --extendReads ${params.extendReadsLen} \\
- *          --ignoreDuplicates \\
- *          --centerReads
- *
- *      plotCorrelation \\
- *          -in multiBamSummary.npz \\
- *          -o scatterplot_PearsonCorr_multiBamSummary.png \\
- *          --outFileCorMatrix scatterplot_PearsonCorr_multiBamSummary.txt \\
- *          --corMethod pearson \\
- *          --skipZeros \\
- *          --removeOutliers \\
- *          --plotTitle "Pearson Correlation of Read Counts" \\
- *          --whatToPlot scatterplot
- *
- *      plotCorrelation \\
- *          -in multiBamSummary.npz \\
- *          -o heatmap_SpearmanCorr_multiBamSummary.png \\
- *          --outFileCorMatrix heatmap_SpearmanCorr_multiBamSummary.txt \\
- *          --corMethod spearman \\
- *          --skipZeros \\
- *          --plotTitle "Spearman Correlation of Read Counts" \\
- *          --whatToPlot heatmap \\
- *          --colorMap RdYlBu \\
- *          --plotNumbers
- *
- *      plotPCA \\
- *          -in multiBamSummary.npz \\
- *          -o pcaplot_multiBamSummary.png \\
- *          --plotTitle "Principal Component Analysis Plot" \\
- *          --outFileNameData pcaplot_multiBamSummary.txt
- */
        """
    }
 }
