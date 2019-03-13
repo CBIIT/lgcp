@@ -567,49 +567,24 @@ process calculateNSCRSC {
  */
 
 process deepTools {
-   tag "${bam[0].baseName}"
+tag "${bam[0].baseName}"
    publishDir "${params.outdir}/deepTools", mode: 'copy'
 
    input:
-   file bam from bam_dedup_deepTools.collect()
-   file bai from bai_dedup_deepTools.collect()
+   file bam from bam_dedup_deepTools
+   file bai from bai_dedup_deepTools
 
    output:
-   file '*.{txt,pdf,png,npz,bw}' into deepTools_results
-   file '*.txt' into deepTools_multiqc
+   file '*.{bw}' into deepTools_results
 
    script:
-   if (!params.singleEnd) {
-       """
-       bamPEFragmentSize \\
-           --binSize 1000 \\
-           --bamfiles $bam \\
-           --histogram fragment_length_distribution_histogram.png \\
-           --plotTitle "Fragment Length Distribution"
-       """
-   }
-   if(bam instanceof Path){
-       log.warn("Only 1 BAM file - skipping multiBam deepTool steps")
-       """
-       bamCoverage \\
-          -b $bam \\
-          --extendReads ${params.extendReadsLen} \\
-          --normalizeUsing RPKM \\
-          -o ${bam}.bw
-       """
-   } else {
-       """
-       for bamfile in ${bam}
-       do
-           bamCoverage \\
-             -b \$bamfile \\
-             --extendReads ${params.extendReadsLen} \\
-             --normalizeUsing RPKM \\
-             -o \${bamfile}.bw
-       done
-
-       """
-   }
+   """
+   bamCoverage \\
+      -b $bam \\
+      --extendReads ${params.extendReadsLen} \\
+      --normalizeUsing RPKM \\
+      -o ${bam}.bw
+   """
 }
 
 
@@ -813,7 +788,7 @@ process multiqc {
     file ('trimgalore/*') from trimgalore_results.collect()
     file ('samtools/*') from samtools_stats.collect()
     file ('picard/*') from picard_reports.collect()
-    file ('deeptools/*') from deepTools_multiqc.collect()
+    //file ('deeptools/*') from deepTools_multiqc.collect()
     file ('phantompeakqualtools/*') from spp_out_mqc.collect()
     file ('phantompeakqualtools/*') from calculateNSCRSC_results.collect()
     //file ('software_versions/*') from software_versions_yaml.collect()
