@@ -750,7 +750,7 @@ if (params.saturation) {
 process homer_find_motifs {
    tag "${homer_bed.baseName}"
    publishDir "${params.outdir}/macs/homer", mode: 'copy',
-       saveAs {filename ->
+       saveAs: {filename ->
             "${homer_bed.baseName}/" 
         }
  
@@ -761,11 +761,9 @@ process homer_find_motifs {
    file '*.{motifs,all.motifs,motifFindingParameters.txt,knownResults.txt,seq.autonorm.tsv,html}' into homer_motifs_results
    stdout channel
  
-   when: REF_macs
- 
    script:
    """
-   findMotifsGenome.pl $homer_bed hg19 ./ -size 200 -mask -preparse -preparsedDir ./ -p 4
+   findMotifsGenome.pl $homer_bed hg19 ./ -size 200 -len 8,10,12 -mask -preparse -preparsedDir ./ -p 4
    """
 }
 
