@@ -642,8 +642,9 @@ process macs {
     set chip_sample_id, ctrl_sample_id, analysis_id from macs_para
 
     output:
-    file '*.{bed,r,narrowPeak}' into macs_results
+    file '*.{bed,r}' into macs_results
     file '*.xls' into macs_peaks
+    file '*.narrowPeak' into macs_narrow_peak_homer
 
     when: REF_macs
 
@@ -746,33 +747,24 @@ if (params.saturation) {
  *}
  */
 
-
-/*
- * Parse software version numbers
- */
-/*process get_software_versions {
- *
- *  output:
- *  file 'software_versions_mqc.yaml' into software_versions_yaml
- *
- *  script:
- *  """
- *  echo ${params.version} > v_ngi_chipseq.txt
- *  echo $workflow.nextflow.version > v_nextflow.txt
- *  fastqc --version > v_fastqc.txt
- *  trim_galore --version > v_trim_galore.txt
- *  echo \$(bwa 2>&1) > v_bwa.txt
- *  samtools --version > v_samtools.txt
- *  bedtools --version > v_bedtools.txt
- *  echo "version" \$(java -Xmx2g -jar \$PICARD_HOME/picard.jar MarkDuplicates --version 2>&1) >v_picard.txt
- *  echo \$(plotFingerprint --version 2>&1) > v_deeptools.txt
- *  echo \$(ngs.plot.r 2>&1) > v_ngsplot.txt
- *  echo \$(macs2 --version 2>&1) > v_macs2.txt
- *  multiqc --version > v_multiqc.txt
- *  scrape_software_versions.py > software_versions_mqc.yaml
- *  """
- *}
- */
+process homer_find_motifs {
+   tag "${homer_bed.baseName}"
+   publishDir "${params.outdir}/macs/homer", mode: 'copy'
+ 
+   input:
+   file homer_bed from macs_narrow_peak_homer
+   
+   output:
+   file '*.{motifs,all.motifs,motifFindingParameters.txt,knownResults.txt,seq.autonorm.tsv,html}' into homer_motifs_results
+ 
+   when: REF_macs
+ 
+   script:
+   filtering = params.blacklist_filtering ? "${params.blacklist}" : "No-filtering"
+   """
+   findMotifsGenome.pl $homer_bed hg19 ./ -size 200 -mask -preparse -preparsedDir ./ -p 4
+   """
+}
 
 /*
  * STEP 11 MultiQC
@@ -791,7 +783,6 @@ process multiqc {
     //file ('deeptools/*') from deepTools_multiqc.collect()
     file ('phantompeakqualtools/*') from spp_out_mqc.collect()
     file ('phantompeakqualtools/*') from calculateNSCRSC_results.collect()
-    //file ('software_versions/*') from software_versions_yaml.collect()
 
     output:
     file '*multiqc_report.html' into multiqc_report
