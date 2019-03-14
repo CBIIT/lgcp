@@ -22,18 +22,21 @@ From the docs:
 
 process homer_find_motifs {
    tag "${homer_bed.baseName}"
-   publishDir "${params.outdir}/macs/homer", mode: 'copy'
+   publishDir "${params.outdir}/macs/homer", mode: 'copy',
+       saveAs {filename ->
+            "${homer_bed.baseName}/" 
+        }
  
    input:
    file homer_bed from macs_narrow_peak_homer
    
    output:
    file '*.{motifs,all.motifs,motifFindingParameters.txt,knownResults.txt,seq.autonorm.tsv,html}' into homer_motifs_results
+   stdout channel
  
    when: REF_macs
  
    script:
-   filtering = params.blacklist_filtering ? "${params.blacklist}" : "No-filtering"
    """
    findMotifsGenome.pl $homer_bed hg19 ./ -size 200 -mask -preparse -preparsedDir ./ -p 4
    """
