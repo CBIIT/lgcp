@@ -3,6 +3,11 @@ Incorporating Homer into LGCP ChIPSeq Pipeline
 Brian Capaldo
 3/14/2019
 
+Homer
+=====
+
+Homer appears to be one of the most recommended tools for peak annotation and motif finding. The intention is to update the current LGCP ChIPSeq nextflow based pipeline to incorporate homer. There are two functions that will be incorporated, `findMotifsGenome.pl`, and `annotatePeaks.pl`. The `annotatePeaks.pl` is the simpler of the two, and will cover that one first. Neither of the functions depend on the other, so rather than adding one process to handle both, we'll be adding two additional processes into [main.nf](../chipseq/main.nf), and cluster options for both of those new processes in the [biowulf config file](../chipseq/conf/biowulf-modules.config).
+
 ``` java
 process createBigWig {
   tag "${bam.baseName - 'sortedByCoord.out'}"
@@ -19,7 +24,7 @@ process createBigWig {
     file "*.bigwig" into bigwig_for_genebody
   
   script:
-    """
+  """
   bamCoverage -b $bam -p ${task.cpus} -o ${bam.baseName}.bigwig
   """
 }
