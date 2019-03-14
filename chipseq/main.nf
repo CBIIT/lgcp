@@ -575,7 +575,7 @@ tag "${bam[0].baseName}"
    file bai from bai_dedup_deepTools
 
    output:
-   file '*.{bw}' into deepTools_results
+   file '*.bw' into deepTools_results
 
    script:
    """
