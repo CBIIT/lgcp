@@ -753,14 +753,13 @@ process homer_find_motifs {
 
    input:
    file homer_bed from macs_narrow_peak_homer
-   file fasta from fasta
 
    output:
    file ("${homer_bed.baseName}") into homer_motifs_results
 
    script:
    """
-   findMotifsGenome.pl $homer_bed $fasta ./${homer_bed.baseName} -size 200 -len 8,10,12 -mask -preparse -preparsedDir ./preparsed/ -p 4
+   findMotifsGenome.pl $homer_bed /fdb/igenomes/Homo_sapiens/Ensembl/GRCh37/Sequence/WholeGenomeFasta/genome.fa ./${homer_bed.baseName} -size 200 -len 8,10,12 -mask -preparse -preparsedDir ./preparsed/ -p 4
    """
 }
 
