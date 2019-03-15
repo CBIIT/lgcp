@@ -750,17 +750,17 @@ if (params.saturation) {
 process homer_find_motifs {
    tag "${homer_bed.baseName}"
    publishDir "${params.outdir}/macs/homer", mode: 'copy'
- 
+
    input:
    file homer_bed from macs_narrow_peak_homer
    file fasta from fasta
-   
+
    output:
-   file '*.{motifs,all.motifs,motifFindingParameters.txt,knownResults.txt,seq.autonorm.tsv,html}' into homer_motifs_results
-   
+   file ("${homer_bed.baseName}") into homer_motifs_results
+
    script:
    """
-   findMotifsGenome.pl $homer_bed $fasta ./ -size 200 -len 8,10,12 -mask -preparse -preparsedDir ./preparsed/ -p 4
+   findMotifsGenome.pl $homer_bed $fasta ./${homer_bed.baseName} -size 200 -len 8,10,12 -mask -preparse -preparsedDir ./preparsed/ -p 4
    """
 }
 
