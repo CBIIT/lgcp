@@ -56,3 +56,14 @@ findMotifsGenome.pl <peak/BED file> <genome> <output directory> -size 200 -mask 
 
 ```
 
+```{bash, eval = F}
+module load samtools
+module load homer
+
+makeTagDirectory myc_wt ../picard/A2-167-1.dedup.sorted.bam ../picard/A2-167-2.dedup.sorted.bam
+makeTagDirectory myc_kd ../picard/A2-167-3.dedup.sorted.bam ../picard/A2-167-4.dedup.sorted.bam ../picard/A2-167-5.dedup.sorted.bam
+
+annotatePeaks.pl  -cTSS sample_1_peaks.narrowPeak hg19 -hist 25 -ghist -d myc_wt/ myc_kd/ > heatmap_matrix.txt
+
+annotatePeaks.pl sample_1_peaks.narrowPeak hg19 -hist 25 -ghist -d myc_wt/ myc_kd/ > heatmap_matrix.txt
+```
