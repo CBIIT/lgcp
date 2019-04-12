@@ -6,7 +6,7 @@ Brian Capaldo
 -   [Introduction](#introduction)
 -   [Methods](#methods)
 -   [Results](#results)
--   [references](#references)
+-   [References](#references)
 
 Document preamble
 
@@ -33,5 +33,5 @@ library(tidyverse)
 library(annotables)
 ```
 
-references
+References
 ==========
