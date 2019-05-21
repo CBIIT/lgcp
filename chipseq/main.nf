@@ -581,6 +581,7 @@ tag "${bam[0].baseName}"
    """
    bamCoverage \\
       -b $bam \\
+      -bs 50 \\
       --extendReads ${params.extendReadsLen} \\
       --normalizeUsing RPKM \\
       -o ${bam}.bw
