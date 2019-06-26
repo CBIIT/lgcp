@@ -8,6 +8,7 @@ BiocManager::install(c("DropletUtils"))
 library(DropletUtils)
 library(scater)
 library(mbkmeans)
+library(scran)
 
 sce <- read10xCounts("/Volumes/Group05/CCBB/SA/Bioinfo_2018/CS024650_Kelly_Agarwal/02_PrimaryAnalysisOutput/00_FullCellrangerOutput/SCAF604_683/outs/filtered_feature_bc_matrix/")
 ctrl <- list(Mito = grep("^MT|^mt-", rowData(sce)$Symbol)) 
