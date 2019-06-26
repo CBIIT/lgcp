@@ -1,38 +1,55 @@
-if (!requireNamespace("BiocManager", quietly = TRUE))
-  install.packages("BiocManager")
-BiocManager::install()
-
-BiocManager::install(c("DropletUtils"))
-
-
 library(DropletUtils)
 library(scater)
 library(mbkmeans)
 library(scran)
+library(TxDb.Mmusculus.UCSC.mm10.ensGene)
+library(TxDb.Hsapiens.UCSC.hg38.knownGene)
+library(BiocSingular)
+library(annotables)
+library(tidyverse)
 
-sce <- read10xCounts("/Volumes/Group05/CCBB/SA/Bioinfo_2018/CS024650_Kelly_Agarwal/02_PrimaryAnalysisOutput/00_FullCellrangerOutput/SCAF604_683/outs/filtered_feature_bc_matrix/")
-ctrl <- list(Mito = grep("^MT|^mt-", rowData(sce)$Symbol)) 
+sce <- read10xCounts("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/02_PrimaryAnalysisOutput/00_FullCellrangerOutputs/SCAF730_190328_G7/outs/filtered_feature_bc_matrix/")
 
-sce <- scater::calculateQCMetrics(sce,
-                          feature_controls = ctrl,
-                          compact = TRUE,
-                          BPPARAM = MulticoreParam(7))
+# ADD FEATURE FOR REF ORG HERE!
+location_tidy <- rowData(sce) %>% 
+  as.data.frame() %>% 
+  left_join(grch38 %>% 
+              select(ensgene, chr), by = c("ID" = "ensgene")) %>% 
+  distinct()
+is.mito <- which(location_tidy$chr == "MT")
 
-high_mito <- isOutlier(colData(sce)$scater_qc$feature_control_Mito$pct_counts,
-                       nmads = 3, type = "higher")
+sce <- calculateQCMetrics(sce, feature_controls=list(Mito=is.mito), BPPARAM = MulticoreParam(7))
 
+# remove cells with log-library sizes that are more than 3 MADs below the median
+qc.lib <- isOutlier(log(sce$total_counts), nmads=3, type="lower")
+# remove cells where the log-transformed number of expressed genes is 3 MADs below the median
+qc.nexprs <- isOutlier(log(sce$total_features_by_counts), nmads=3,
+                        type="lower")
+# remove cells where the number of mito genes is 3 MADs above the median
+qc.mito <- isOutlier(sce$pct_counts_Mito, nmads=3, type="higher")
 
-metadata(sce)$high_mito <- high_mito
+discard <- qc.lib | qc.nexprs | qc.mito
 
-sce_filtered <- sce[, !metadata(sce)$high_mito]
+# Summarize the number of cells removed for each reason.
+DataFrame(LibSize=sum(qc.lib),
+          NExprs=sum(qc.nexprs),
+          MitoProp=sum(qc.mito),
+          Total=sum(discard))
 
-num_reads <- 1
-num_cells <- 0.05 * ncol(sce_filtered)
-keep <- which(DelayedArray::rowSums(counts(sce_filtered) >= num_reads) >= num_cells)
+# Retain only high-quality cells in the SingleCellExperiment.
+sce <- sce[,!discard]
 
-metadata(sce_filtered)$genes_keep <- keep
+## normalization
+sce <- normalize(sce)
 
-low_lib_sce <- isOutlier(sce_filtered$scater_qc$all$log10_total_counts, type="lower", nmad=3)
-low_genes_sce <- isOutlier(sce_filtered$scater_qc$all$log10_total_features_by_counts, type="lower", nmad=3)
+## feature selection
+fit <- trendVar(sce, use.spikes = FALSE)
+dec <- decomposeVar(sce, fit)
+hvg <- rownames(dec[dec$bio > 0, ]) # ~4k genes
 
-sce_filtered <- sce_filtered[, !(low_lib_sce | low_genes_sce)]
+## dimensionality reduction
+set.seed(1234)
+sce <- runPCA(sce, 
+              feature_set = hvg)
+
+sce <- runUMAP(sce)
