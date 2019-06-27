@@ -2,11 +2,10 @@ library(DropletUtils)
 library(scater)
 library(mbkmeans)
 library(scran)
-library(TxDb.Mmusculus.UCSC.mm10.ensGene)
-library(TxDb.Hsapiens.UCSC.hg38.knownGene)
 library(BiocSingular)
 library(annotables)
 library(tidyverse)
+library(SC3)
 
 sce <- read10xCounts("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/02_PrimaryAnalysisOutput/00_FullCellrangerOutputs/SCAF730_190328_G7/outs/filtered_feature_bc_matrix/")
 
@@ -53,3 +52,17 @@ sce <- runPCA(sce,
               feature_set = hvg)
 
 sce <- runUMAP(sce)
+## SC3 requires this column to be appended
+rowData(sce)$feature_symbol <- rowData(sce)$Symbol
+## SC3 cannot handle sparse matrixes/hdf nonsense
+counts(sce) <- as.matrix(counts(sce))
+logcounts(sce) <- as.matrix(logcounts(sce))
+sce <- sc3(sce,
+           ks = 3:6,
+           k_estimator = TRUE)
+
+sc3_cols <- paste0('sc3_', 3:6, '_clusters')
+
+p_l <- map(sc3_cols, ~ plotUMAP(sce, colour_by = .))
+
+wrap_plots(p_l, ncol = 2)
