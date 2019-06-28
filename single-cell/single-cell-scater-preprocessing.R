@@ -118,7 +118,7 @@ names(dists) <- distances
 dist_spearmnan <- as.dist(dists$spearman) 
 hclust_spearman <- hclust(dist_spearmnan)
 
-cor_test_res <- lapply(seq_along(2:nrow(colData(sce))),
+cor_test_res <- lapply(c(seq_along(2:nrow(colData(sce)))),
                        function(col_index){
                          first_col <- col_index - 1
                          cor_vec <- counts(sce)[,first_col]
@@ -131,8 +131,9 @@ cor_test_res <- lapply(seq_along(2:nrow(colData(sce))),
                            return(res)
                          }) %>% 
                            bind_rows()
-                         
+                        return(cor_results) 
                        })
+
 cor.test(counts(sce)[,1],
          counts(sce)[,2],
          method = "spearman") %>% broom::tidy()
