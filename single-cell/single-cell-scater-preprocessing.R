@@ -57,12 +57,82 @@ rowData(sce)$feature_symbol <- rowData(sce)$Symbol
 ## SC3 cannot handle sparse matrixes/hdf nonsense
 counts(sce) <- as.matrix(counts(sce))
 logcounts(sce) <- as.matrix(logcounts(sce))
-sce <- sc3(sce,
-           ks = 3:6,
-           k_estimator = TRUE)
+# sce <- sc3(sce,
+#            ks = 3:6,
+#            k_estimator = TRUE)
+# 
+# sc3_cols <- paste0('sc3_', 3:6, '_clusters')
+# 
+# p_l <- map(sc3_cols, ~ plotUMAP(sce, colour_by = .))
+# 
+# wrap_plots(p_l, ncol = 2)
+# 
+# col_data <- colData(sce)
+# head(col_data[ , grep("sc3_", colnames(col_data))])
+# 
+# plotUMAP(
+#   sce, 
+#   colour_by = "sc3_5_clusters" 
+# )
+# sc3_plot_markers(sce, k = 4)
+# 
+# counts_kmeans <- mbkmeans(sce,
+#                           reduceMethod = NA,
+#                           whichAssay = "logcounts",
+#                           clusters = 10)
+# 
+# colData(sce)$mbkmeans_3_clusters <- factor(counts_kmeans$Clusters)
+# 
+# plotUMAP(
+#   sce, 
+#   colour_by = "mbkmeans_3_clusters" 
+# )
+# 
+# spearman_test <- cor(counts(sce), use = "pairwise.complete", method = "spearman")
 
-sc3_cols <- paste0('sc3_', 3:6, '_clusters')
+logcounts(sce_sc3) <- counts(sce_sc3)
+sce_sc3 <- sc3_prepare(sce)
+str(metadata(sce_sc3)$sc3)
+sce_sc3 <- sc3_estimate_k(sce_sc3)
+str(metadata(sce_sc3)$sc3)
+sce_sc3 <- sc3_calc_dists(sce_sc3)
+names(metadata(sce_sc3)$sc3$distances)
 
-p_l <- map(sc3_cols, ~ plotUMAP(sce, colour_by = .))
+dists_counts <- metadata(sce_sc3)$sc3$distances
 
-wrap_plots(p_l, ncol = 2)
+dataset <- counts(sce_sc3)
+i <- NULL
+distances <- c("euclidean", "pearson", "spearman")
+message("Calculating distances between the cells...")
+n_cores <- 7
+cl <- parallel::makeCluster(n_cores, outfile = "")
+doParallel::registerDoParallel(cl, cores = n_cores)
+dists <- foreach::foreach(i = distances) %dorng% {
+  try({
+    SC3:::calculate_distance(dataset, i)
+  })
+}
+parallel::stopCluster(cl)
+names(dists) <- distances
+
+dist_spearmnan <- as.dist(dists$spearman) 
+hclust_spearman <- hclust(dist_spearmnan)
+
+cor_test_res <- lapply(seq_along(2:nrow(colData(sce))),
+                       function(col_index){
+                         first_col <- col_index - 1
+                         cor_vec <- counts(sce)[,first_col]
+                         cor_mat <- counts(sce)[,col_index:ncol(counts(sce))]
+                         cor_results <- apply(cor_mat, 2, function(x){
+                           res <- cor.test(cor_vec,
+                                    x,
+                                    method = "spearman") %>% 
+                             broom::tidy()  
+                           return(res)
+                         }) %>% 
+                           bind_rows()
+                         
+                       })
+cor.test(counts(sce)[,1],
+         counts(sce)[,2],
+         method = "spearman") %>% broom::tidy()
