@@ -137,3 +137,12 @@ cor_test_res <- lapply(c(seq_along(2:nrow(colData(sce)))),
 cor.test(counts(sce)[,1],
          counts(sce)[,2],
          method = "spearman") %>% broom::tidy()
+
+source("single-cell/scrna2019/algs/glmpca.R")
+
+filtered_counts <- counts(sce)
+filtered_counts <- filtered_counts[rowSums(filtered_counts) > 0,]
+
+test_glmpca <- glmpca(filtered_counts,
+                      2,
+                      fam = "mult")
