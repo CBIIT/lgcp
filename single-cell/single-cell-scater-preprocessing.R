@@ -155,3 +155,5 @@ save.image("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/Untitled.RData")
 test_glmpca_poi_30 <- glmpca(filtered_counts,
                           30,
                           fam = "poi")
+
+lapply()
