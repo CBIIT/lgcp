@@ -158,4 +158,58 @@ test_glmpca_poi_30 <- glmpca(filtered_counts,
                           30,
                           fam = "poi")
 
-lapply()
+vectorized_loadings <- lapply(test_glmpca_poi_30$loadings, function(dim_x){
+  vector_x <- as.vector(dim_x)
+  names(vector_x) <- row.names(test_glmpca_poi_30$loadings)
+  vector_x <- vector_x[order(vector_x, decreasing = T)]
+  return(vector_x)
+})
+
+m_df <-msigdbr()
+m_t2g = m_df %>% dplyr::select(gs_name, entrez_gene) %>% as.data.frame()
+
+pca_loadings_entrez <- lapply(vectorized_loadings, function(dim_x){
+  names(dim_x) <- (data.frame(ensgene = names(dim_x)) %>% 
+                     left_join(grch38 %>% 
+                                 distinct(ensgene, entrez) %>% 
+                                 dplyr::filter(entrez %in% m_t2g$entrez_gene)) %>% 
+                     select(entrez) %>% 
+                     dplyr::filter(!is.na(entrez)))[[1]]
+  return(dim_x)
+})
+
+pca_loadings_gsea <- lapply(pca_loadings_entrez, GSEA, TERM2GENE = m_t2g)
+
+library(flowCore)
+library(FlowSOM)
+
+flow_frame <- new("flowFrame",
+                  exprs = as.matrix(test_glmpca_poi_30$factors))
+
+# flow_typed <- flowType(flow_frame,
+#                        MFIMarkers = c(1:3),
+#                        PartitionsPerMarker = 4,
+#                        Methods = "thresholds",
+#                        Thresholds = list(asinh(c(1,10,100))))
+
+
+som <- ReadInput(flow_frame)
+som <- BuildSOM(som, xdim = 2, ydim = 2)
+mst <- BuildMST(som)
+
+PlotStars(mst)
+PlotStars(mst, view = "grid")
+
+save.image("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/Untitled.RData")
+
+
+
+
+
+flow_typed@Partitions %>% 
+  as.data.frame() %>% 
+  setNames(colnames(data)) %>%
+  ggplot(aes(TK1)) +
+  geom_bar() +
+  facet_grid(SCG2 ~ AR) +
+  scale_y_log10()
