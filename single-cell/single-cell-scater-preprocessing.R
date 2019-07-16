@@ -6,6 +6,8 @@ library(BiocSingular)
 library(annotables)
 library(tidyverse)
 library(SC3)
+library(msigdbr)
+library(clusterProfiler)
 
 sce <- read10xCounts("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/02_PrimaryAnalysisOutput/00_FullCellrangerOutputs/SCAF730_190328_G7/outs/filtered_feature_bc_matrix/")
 
