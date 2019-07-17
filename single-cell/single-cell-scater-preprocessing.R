@@ -171,11 +171,12 @@ pca_loadings_entrez <- lapply(vectorized_loadings, function(dim_x){
                                  dplyr::filter(entrez %in% m_t2g$entrez_gene)) %>% 
                      select(entrez) %>% 
                      dplyr::filter(!is.na(entrez)))[[1]]
-  #dim_x <- dim_x[unique(names(dim_x))]
+  dim_x <- dim_x[unique(names(dim_x))]
+  dim_x <- sort(dim_x, decreasing = T)
   return(dim_x)
 })
 
-pca_loadings_gsea <- lapply(pca_loadings_entrez, GSEA, TERM2GENE = m_t2g)
+pca_loadings_gsea <- lapply(pca_loadings_entrez, GSEA, TERM2GENE = m_t2g, pvalueCutoff = 1)
 
 loadings_gsea_symbols <- lapply(pca_loadings_gsea, function(x){
   new_result <- x@result %>% 
