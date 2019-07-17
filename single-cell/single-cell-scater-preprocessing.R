@@ -8,6 +8,11 @@ library(tidyverse)
 library(SC3)
 library(msigdbr)
 library(clusterProfiler)
+library(flowCore)
+library(FlowSOM)
+library(factoextra)
+library(NbClust)
+
 
 sce <- read10xCounts("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/02_PrimaryAnalysisOutput/00_FullCellrangerOutputs/SCAF730_190328_G7/outs/filtered_feature_bc_matrix/")
 
@@ -145,15 +150,6 @@ source("single-cell/scrna2019/algs/glmpca.R")
 filtered_counts <- counts(sce)
 filtered_counts <- filtered_counts[rowSums(filtered_counts) > 0,]
 
-test_glmpca <- glmpca(filtered_counts,
-                      2,
-                      fam = "mult")
-
-test_glmpca_poi <- glmpca(filtered_counts,
-                      10,
-                      fam = "poi")
-save.image("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/Untitled.RData")
-
 test_glmpca_poi_30 <- glmpca(filtered_counts,
                           30,
                           fam = "poi")
@@ -175,41 +171,49 @@ pca_loadings_entrez <- lapply(vectorized_loadings, function(dim_x){
                                  dplyr::filter(entrez %in% m_t2g$entrez_gene)) %>% 
                      select(entrez) %>% 
                      dplyr::filter(!is.na(entrez)))[[1]]
+  #dim_x <- dim_x[unique(names(dim_x))]
   return(dim_x)
 })
 
 pca_loadings_gsea <- lapply(pca_loadings_entrez, GSEA, TERM2GENE = m_t2g)
 
-library(flowCore)
-library(FlowSOM)
+loadings_gsea_symbols <- lapply(pca_loadings_gsea, function(x){
+  new_result <- x@result %>% 
+    mutate(entrez = str_split(core_enrichment, "/")) %>%
+    unnest(entrez) %>%
+    mutate(entrez = as.integer(entrez)) %>% 
+    left_join(grch38 %>% 
+                dplyr::select(entrez, symbol)) %>% 
+    dplyr::select(-c(core_enrichment, entrez)) %>% 
+    group_by_at(vars(-symbol)) %>% 
+    summarize(core_enrichment = paste(symbol, collapse = ", "))
+  return(new_result)
+})
+
+gsea_df <- loadings_gsea_symbols %>% 
+  bind_rows(.id = dim)
 
 flow_frame <- new("flowFrame",
                   exprs = as.matrix(test_glmpca_poi_30$factors))
 
-# flow_typed <- flowType(flow_frame,
-#                        MFIMarkers = c(1:3),
-#                        PartitionsPerMarker = 4,
-#                        Methods = "thresholds",
-#                        Thresholds = list(asinh(c(1,10,100))))
-
-
 som <- ReadInput(flow_frame)
-som <- BuildSOM(som, xdim = 2, ydim = 2)
-mst <- BuildMST(som)
+som <- BuildSOM(som, xdim = 30, ydim = 30)
+
+som_clust <- NbClust(som$map$medianValues, distance = "euclidean", min.nc = 2, max.nc = 10, method = "kmeans")
+
+cluster_mapping <- data.frame(consensus_cluster = som_clust$Best.partition,
+                              som_node_id = 1:length(som_clust$Best.partition))
 
 PlotStars(mst)
 PlotStars(mst, view = "grid")
 
 save.image("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/Untitled.RData")
 
-
-
-
-
-flow_typed@Partitions %>% 
+plot_me <- cbind(test_glmpca_poi_30$factors[,1:2], mst$map$mapping[,1]) %>% 
   as.data.frame() %>% 
-  setNames(colnames(data)) %>%
-  ggplot(aes(TK1)) +
-  geom_bar() +
-  facet_grid(SCG2 ~ AR) +
-  scale_y_log10()
+  setNames(c("dim1", "dim2", "som_node_id")) %>%
+  left_join(cluster_mapping)
+
+  ggplot(aes(dim1, dim2, color = factor(consensus_cluster))) +
+  geom_point() 
+

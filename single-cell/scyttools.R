@@ -5,9 +5,9 @@ require(methods)
 
 "
 Usage:
-cledger.R (-h | --help | --version)
-cledger.R --normalize_RSEM DIR OUT
-cledger.R --normalize_featureCounts DIR OUT
+scyttools.R (-h | --help | --version)
+scyttools.R --normalize_RSEM DIR OUT
+scyttools.R --normalize_featureCounts DIR OUT
 
 Description:   This program is a command line interface to edgeR
 
