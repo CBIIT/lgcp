@@ -192,7 +192,7 @@ loadings_gsea_symbols <- lapply(pca_loadings_gsea, function(x){
 })
 
 gsea_df <- loadings_gsea_symbols %>% 
-  bind_rows(.id = dim)
+  bind_rows(.id = "dim")
 
 flow_frame <- new("flowFrame",
                   exprs = as.matrix(test_glmpca_poi_30$factors))
