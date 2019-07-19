@@ -186,10 +186,13 @@ loadings_gsea_symbols <- lapply(pca_loadings_gsea, function(x){
     left_join(grch38 %>% 
                 dplyr::select(entrez, symbol)) %>% 
     dplyr::select(-c(core_enrichment, entrez)) %>% 
+    dplyr::distinct() %>% 
     group_by_at(vars(-symbol)) %>% 
-    summarize(core_enrichment = paste(symbol, collapse = ", "))
+    summarize(num_genes = n_distinct(symbol),
+      core_enrichment = paste(symbol, collapse = ", "))
   return(new_result)
 })
+
 
 gsea_df <- loadings_gsea_symbols %>% 
   bind_rows(.id = "dim")
