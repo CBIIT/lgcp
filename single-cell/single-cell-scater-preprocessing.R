@@ -197,6 +197,38 @@ loadings_gsea_symbols <- lapply(pca_loadings_gsea, function(x){
 gsea_df <- loadings_gsea_symbols %>% 
   bind_rows(.id = "dim")
 
+
+test_clust <- lapply(test_glmpca_poi_30$factors, kmeans, centers = 2, iter.max = 100, nstart = 10)
+
+plot_df <- data.frame(test_glmpca_poi_30$factors) %>% 
+  gather(reduced_dim_id, value) %>% 
+  bind_cols(lapply(test_clust, `[[`, 1) %>%
+              lapply(as.data.frame) %>% 
+              bind_rows(.id = "dim_id") %>% 
+              setNames(c("dim_id", "kmeans_id")))
+
+plot_df %>% 
+  ggplot(aes(value, fill = factor(kmeans_id))) +
+  geom_histogram(bins = 100) +
+  facet_wrap(~reduced_dim_id) +
+  theme_bw()
+
+test_clust <- lapply(test_glmpca_poi_30$factors, kmeans, centers = 3, nstart = 5)
+
+plot_df <- data.frame(test_glmpca_poi_30$factors) %>% 
+  gather(reduced_dim_id, value) %>% 
+  bind_cols(lapply(test_clust, `[[`, 1) %>%
+              lapply(as.data.frame) %>% 
+              bind_rows(.id = "dim_id") %>% 
+              setNames(c("dim_id", "kmeans_id")))
+
+plot_df %>% 
+  ggplot(aes(value, fill = factor(kmeans_id))) +
+  geom_histogram(bins = 100) +
+  facet_wrap(~reduced_dim_id) +
+  theme_bw()
+
+
 flow_frame <- new("flowFrame",
                   exprs = as.matrix(test_glmpca_poi_30$factors))
 
