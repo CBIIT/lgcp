@@ -10,8 +10,6 @@ library(msigdbr)
 library(clusterProfiler)
 library(flowCore)
 library(FlowSOM)
-library(factoextra)
-library(NbClust)
 
 
 sce <- read10xCounts("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/02_PrimaryAnalysisOutput/00_FullCellrangerOutputs/SCAF730_190328_G7/outs/filtered_feature_bc_matrix/")
@@ -210,32 +208,14 @@ plot_df <- data.frame(test_glmpca_poi_30$factors) %>%
 plot_df %>% 
   ggplot(aes(value, fill = factor(kmeans_id))) +
   geom_histogram(bins = 100) +
-  facet_wrap(~reduced_dim_id) +
+  facet_grid(kmeans_id~reduced_dim_id) +
   theme_bw()
-
-test_clust <- lapply(test_glmpca_poi_30$factors, kmeans, centers = 3, nstart = 5)
-
-plot_df <- data.frame(test_glmpca_poi_30$factors) %>% 
-  gather(reduced_dim_id, value) %>% 
-  bind_cols(lapply(test_clust, `[[`, 1) %>%
-              lapply(as.data.frame) %>% 
-              bind_rows(.id = "dim_id") %>% 
-              setNames(c("dim_id", "kmeans_id")))
-
-plot_df %>% 
-  ggplot(aes(value, fill = factor(kmeans_id))) +
-  geom_histogram(bins = 100) +
-  facet_wrap(~reduced_dim_id) +
-  theme_bw()
-
 
 flow_frame <- new("flowFrame",
                   exprs = as.matrix(test_glmpca_poi_30$factors))
 
 som <- ReadInput(flow_frame)
 som <- BuildSOM(som, xdim = 30, ydim = 30)
-
-som_clust <- NbClust(som$map$medianValues, distance = "euclidean", min.nc = 2, max.nc = 10, method = "kmeans")
 
 cluster_mapping <- data.frame(consensus_cluster = som_clust$Best.partition,
                               som_node_id = 1:length(som_clust$Best.partition))
