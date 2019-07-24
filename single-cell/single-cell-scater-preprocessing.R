@@ -211,6 +211,13 @@ plot_df %>%
   facet_grid(kmeans_id~reduced_dim_id) +
   theme_bw()
 
+
+plot_df %>% 
+  ggplot(aes(value, fill = factor(kmeans_id))) +
+  geom_histogram(bins = 100) +
+  facet_wrap(~reduced_dim_id) +
+  theme_bw()
+
 flow_frame <- new("flowFrame",
                   exprs = as.matrix(test_glmpca_poi_30$factors))
 
