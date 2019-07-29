@@ -176,26 +176,6 @@ som_nodes_stats <- plot_df %>%
                      fill = 0) %>% 
               mutate(fraction_high = high/(low+high)))
 
-
-
-
-plot_df %>% 
-  group_by(reduced_dim_id, cluster_median, cluster_id, som_node, mst_x, mst_y) %>%
-  summarize(som_mean = mean(value),
-            som_median = median(value)) %>% 
-  ungroup() %>% 
-  group_by(reduced_dim_id, cluster_median, som_node, mst_x, mst_y, som_mean, som_median) %>%
-  count(cluster_id) 
-  ungroup() %>% 
-  spread(cluster_id,
-         n,
-         fill = 0) %>% 
-  mutate(fraction_high = high/(low+high)) %>% 
-  ggplot(aes(fraction_high)) +
-  geom_density()
-
-
-
 save.image("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/Untitled.RData")
 
 plot_me <- cbind(test_glmpca_poi_30$factors[,1:2], mst$map$mapping[,1]) %>% 
