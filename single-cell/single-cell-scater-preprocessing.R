@@ -163,7 +163,9 @@ plot_df %>%
   theme_void() +
   theme(legend.position = "none")
 
-
+plot_df %>% 
+  group_by(som_node, reduced_dim_id) %>% 
+  count(cluster_id)
 
 
 
