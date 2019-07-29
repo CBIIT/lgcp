@@ -10,8 +10,10 @@ library(msigdbr)
 library(clusterProfiler)
 library(flowCore)
 library(FlowSOM)
+source("single-cell/scrna2019/algs/glmpca.R")
 
 
+# read in 10x counts, change this to parameter fed in at command line
 sce <- read10xCounts("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/02_PrimaryAnalysisOutput/00_FullCellrangerOutputs/SCAF730_190328_G7/outs/filtered_feature_bc_matrix/")
 
 # ADD FEATURE FOR REF ORG HERE!
@@ -35,7 +37,7 @@ qc.mito <- isOutlier(sce$pct_counts_Mito, nmads=3, type="higher")
 discard <- qc.lib | qc.nexprs | qc.mito
 
 # Summarize the number of cells removed for each reason.
-DataFrame(LibSize=sum(qc.lib),
+cells_removed_summary_df <- DataFrame(LibSize=sum(qc.lib),
           NExprs=sum(qc.nexprs),
           MitoProp=sum(qc.mito),
           Total=sum(discard))
@@ -62,88 +64,6 @@ rowData(sce)$feature_symbol <- rowData(sce)$Symbol
 ## SC3 cannot handle sparse matrixes/hdf nonsense
 counts(sce) <- as.matrix(counts(sce))
 logcounts(sce) <- as.matrix(logcounts(sce))
-# sce <- sc3(sce,
-#            ks = 3:6,
-#            k_estimator = TRUE)
-# 
-# sc3_cols <- paste0('sc3_', 3:6, '_clusters')
-# 
-# p_l <- map(sc3_cols, ~ plotUMAP(sce, colour_by = .))
-# 
-# wrap_plots(p_l, ncol = 2)
-# 
-# col_data <- colData(sce)
-# head(col_data[ , grep("sc3_", colnames(col_data))])
-# 
-# plotUMAP(
-#   sce, 
-#   colour_by = "sc3_5_clusters" 
-# )
-# sc3_plot_markers(sce, k = 4)
-# 
-# counts_kmeans <- mbkmeans(sce,
-#                           reduceMethod = NA,
-#                           whichAssay = "logcounts",
-#                           clusters = 10)
-# 
-# colData(sce)$mbkmeans_3_clusters <- factor(counts_kmeans$Clusters)
-# 
-# plotUMAP(
-#   sce, 
-#   colour_by = "mbkmeans_3_clusters" 
-# )
-# 
-# spearman_test <- cor(counts(sce), use = "pairwise.complete", method = "spearman")
-
-logcounts(sce_sc3) <- counts(sce_sc3)
-sce_sc3 <- sc3_prepare(sce)
-str(metadata(sce_sc3)$sc3)
-sce_sc3 <- sc3_estimate_k(sce_sc3)
-str(metadata(sce_sc3)$sc3)
-sce_sc3 <- sc3_calc_dists(sce_sc3)
-names(metadata(sce_sc3)$sc3$distances)
-
-dists_counts <- metadata(sce_sc3)$sc3$distances
-
-dataset <- counts(sce_sc3)
-i <- NULL
-distances <- c("euclidean", "pearson", "spearman")
-message("Calculating distances between the cells...")
-n_cores <- 7
-cl <- parallel::makeCluster(n_cores, outfile = "")
-doParallel::registerDoParallel(cl, cores = n_cores)
-dists <- foreach::foreach(i = distances) %dorng% {
-  try({
-    SC3:::calculate_distance(dataset, i)
-  })
-}
-parallel::stopCluster(cl)
-names(dists) <- distances
-
-dist_spearmnan <- as.dist(dists$spearman) 
-hclust_spearman <- hclust(dist_spearmnan)
-
-cor_test_res <- lapply(c(seq_along(2:nrow(colData(sce)))),
-                       function(col_index){
-                         first_col <- col_index - 1
-                         cor_vec <- counts(sce)[,first_col]
-                         cor_mat <- counts(sce)[,col_index:ncol(counts(sce))]
-                         cor_results <- apply(cor_mat, 2, function(x){
-                           res <- cor.test(cor_vec,
-                                    x,
-                                    method = "spearman") %>% 
-                             broom::tidy()  
-                           return(res)
-                         }) %>% 
-                           bind_rows()
-                        return(cor_results) 
-                       })
-
-cor.test(counts(sce)[,1],
-         counts(sce)[,2],
-         method = "spearman") %>% broom::tidy()
-
-source("single-cell/scrna2019/algs/glmpca.R")
 
 filtered_counts <- counts(sce)
 filtered_counts <- filtered_counts[rowSums(filtered_counts) > 0,]
@@ -198,22 +118,27 @@ gsea_df <- loadings_gsea_symbols %>%
 
 test_clust <- lapply(test_glmpca_poi_30$factors, kmeans, centers = 2, iter.max = 100, nstart = 10)
 
-plot_df <- data.frame(test_glmpca_poi_30$factors) %>% 
-  gather(reduced_dim_id, value) %>% 
+plot_df <- data.frame(test_glmpca_poi_30$factors,
+                      Barcode = colData(sce)$Barcode) %>% 
+  gather(reduced_dim_id, value, -Barcode) %>% 
   bind_cols(lapply(test_clust, `[[`, 1) %>%
               lapply(as.data.frame) %>% 
               bind_rows(.id = "dim_id") %>% 
-              setNames(c("dim_id", "kmeans_id")))
+              setNames(c("dim_id", "kmeans_id"))) %>% 
+  mutate(reduced_dim_id = factor(reduced_dim_id, levels = paste0("dim", c(1:30))))
+
+kmeans_dim_id <- plot_df %>%
+  group_by(reduced_dim_id, kmeans_id) %>%
+  summarize(cluster_median = median(value)) %>%
+  arrange(reduced_dim_id, cluster_median) %>%
+  ungroup() %>% 
+  mutate(cluster_id = factor(rep(c("low", "high"), 30), levels = c("low", "high")))
+
+plot_df <- plot_df %>% 
+  left_join(kmeans_dim_id) 
 
 plot_df %>% 
-  ggplot(aes(value, fill = factor(kmeans_id))) +
-  geom_histogram(bins = 100) +
-  facet_grid(kmeans_id~reduced_dim_id) +
-  theme_bw()
-
-
-plot_df %>% 
-  ggplot(aes(value, fill = factor(kmeans_id))) +
+  ggplot(aes(value, fill = cluster_id)) +
   geom_histogram(bins = 100) +
   facet_wrap(~reduced_dim_id) +
   theme_bw()
@@ -224,11 +149,23 @@ flow_frame <- new("flowFrame",
 som <- ReadInput(flow_frame)
 som <- BuildSOM(som, xdim = 30, ydim = 30)
 
-cluster_mapping <- data.frame(consensus_cluster = som_clust$Best.partition,
-                              som_node_id = 1:length(som_clust$Best.partition))
+plot_df <- plot_df %>% 
+  left_join(data.frame(Barcode = colData(sce)$Barcode,
+                       som_node = mst$map$mapping[,1])) %>% 
+  left_join(data.frame(som_node = c(1:nrow(mst$MST$l)),
+            mst_x = mst$MST$l[,1],
+            mst_y = mst$MST$l[,2]))
 
-PlotStars(mst)
-PlotStars(mst, view = "grid")
+plot_df %>%
+  ggplot(aes(mst_x, mst_y, color = cluster_id)) +
+  geom_point() +
+  facet_wrap(~reduced_dim_id) +
+  theme_void() +
+  theme(legend.position = "none")
+
+
+
+
 
 save.image("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/Untitled.RData")
 
