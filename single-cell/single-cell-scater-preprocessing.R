@@ -179,10 +179,31 @@ som_nodes_stats <- plot_df %>%
               spread(cluster_id, cluster_median) %>% 
               setNames(c("reduced_dim_id", "kmns_lo_clstr_med", "kmns_hi_clstr_med")))
 
-som_nodes_stats %>% 
+playing <- som_nodes_stats %>% 
   mutate(som_clst_label = case_when(som_median <= kmns_lo_clstr_med ~ "Negative",
                                     som_median >= kmns_hi_clstr_med ~ "Positive",
-                                    T ~ "Neutral" ))
+                                    som_median > kmns_lo_clstr_med && fraction_high < 0.25 ~ "Low",
+                                    som_median < kmns_hi_clstr_med && fraction_high > 0.75 ~ "High",
+                                    T ~ "Neutral" ),
+         som_clst_label = factor(som_clst_label, levels = c("Negative", "Low", "Neutral", "High", "Positive")))
+
+playing %>%
+  left_join(data.frame(som_node = c(1:nrow(mst$MST$l)),
+                       mst_x = mst$MST$l[,1],
+                       mst_y = mst$MST$l[,2])) %>% 
+  ggplot(aes(mst_x, mst_y, color = som_clst_label, size = num_cells, alpha = 0.25)) +
+  geom_point() +
+  facet_wrap(~reduced_dim_id) +
+  theme_void() +
+  scale_color_manual(values = c("darkblue", "lightblue", "grey", "red", "darkred")) +
+  theme(legend.position = "none")
+
+ggsave("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/som-plot.pdf",
+       width = 16,
+       height = 9)
+
+gsea_df %>% 
+  write_csv("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/glm-pcs-gsea-results.csv")
 
 save.image("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/Untitled.RData")
 
