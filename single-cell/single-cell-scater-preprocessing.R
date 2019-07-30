@@ -1,11 +1,9 @@
 library(DropletUtils)
 library(scater)
-library(mbkmeans)
 library(scran)
 library(BiocSingular)
 library(annotables)
 library(tidyverse)
-library(SC3)
 library(msigdbr)
 library(clusterProfiler)
 library(flowCore)
@@ -174,7 +172,17 @@ som_nodes_stats <- plot_df %>%
               spread(cluster_id,
                      n,
                      fill = 0) %>% 
-              mutate(fraction_high = high/(low+high)))
+              mutate(fraction_high = high/(low+high),
+                     num_cells = low+high)) %>% 
+  left_join(kmeans_dim_id %>% 
+              dplyr::select(reduced_dim_id, cluster_id, cluster_median) %>% 
+              spread(cluster_id, cluster_median) %>% 
+              setNames(c("reduced_dim_id", "kmns_lo_clstr_med", "kmns_hi_clstr_med")))
+
+som_nodes_stats %>% 
+  mutate(som_clst_label = case_when(som_median <= kmns_lo_clstr_med ~ "Negative",
+                                    som_median >= kmns_hi_clstr_med ~ "Positive",
+                                    T ~ "Neutral" ))
 
 save.image("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/Untitled.RData")
 
