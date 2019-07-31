@@ -12,7 +12,9 @@ source("single-cell/scrna2019/algs/glmpca.R")
 
 
 # read in 10x counts, change this to parameter fed in at command line
-sce <- read10xCounts("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/02_PrimaryAnalysisOutput/00_FullCellrangerOutputs/SCAF730_190328_G7/outs/filtered_feature_bc_matrix/")
+#sce <- read10xCounts("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/02_PrimaryAnalysisOutput/00_FullCellrangerOutputs/SCAF730_190328_G7/outs/filtered_feature_bc_matrix/")
+
+sce <- read10xCounts("/Volumes/group09/CCB/Beshiri/Folders_old/CT35/'Omics_data/single_cell_RNAseq/CS024464_Beshiri_CellTagging/CS024464_Beshiri_CellTagging/02-CountsOutput/SCAF636_35-1/outs/filtered_feature_bc_matrix/")
 
 # ADD FEATURE FOR REF ORG HERE!
 location_tidy <- rowData(sce) %>% 
@@ -44,10 +46,10 @@ cells_removed_summary_df <- DataFrame(LibSize=sum(qc.lib),
 sce <- sce[,!discard]
 
 ## normalization
-sce <- normalize(sce)
+sce <- scater::normalize(sce)
 
 ## feature selection
-fit <- trendVar(sce, use.spikes = FALSE)
+fit <- trendVar(sce, use.spikes = F)
 dec <- decomposeVar(sce, fit)
 hvg <- rownames(dec[dec$bio > 0, ]) # ~4k genes
 
@@ -192,7 +194,7 @@ playing %>%
                        mst_x = mst$MST$l[,1],
                        mst_y = mst$MST$l[,2])) %>% 
   ggplot(aes(mst_x, mst_y, color = som_clst_label, size = num_cells, alpha = 0.25)) +
-  geom_point() +
+  geom_point(shape = 21) +
   facet_wrap(~reduced_dim_id) +
   theme_void() +
   scale_color_manual(values = c("darkblue", "lightblue", "grey", "red", "darkred")) +
@@ -204,6 +206,14 @@ ggsave("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/som-plot.pdf",
 
 gsea_df %>% 
   write_csv("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/glm-pcs-gsea-results.csv")
+
+playing %>% 
+  dplyr::select(reduced_dim_id, som_clst_label, som_node, num_cells) %>% 
+  spread(reduced_dim_id, som_clst_label) %>% 
+  ungroup() %>%
+  arrange(desc(num_cells))
+  dplyr::select(-som_node) %>% 
+  distinct()
 
 save.image("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/Untitled.RData")
 
