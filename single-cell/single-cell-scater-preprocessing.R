@@ -147,7 +147,8 @@ flow_frame <- new("flowFrame",
                   exprs = as.matrix(test_glmpca_poi_30$factors))
 
 som <- ReadInput(flow_frame)
-som <- BuildSOM(som, xdim = 30, ydim = 30)
+som <- BuildSOM(som, xdim = 5, ydim = 5)
+mst <- BuildMST(som)
 
 plot_df <- plot_df %>% 
   left_join(data.frame(Barcode = colData(sce)$Barcode,
@@ -200,18 +201,18 @@ playing %>%
   scale_color_manual(values = c("darkblue", "lightblue", "grey", "red", "darkred")) +
   theme(legend.position = "none")
 
-ggsave("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/som-plot.pdf",
-       width = 16,
-       height = 9)
-
-gsea_df %>% 
-  write_csv("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/glm-pcs-gsea-results.csv")
+# ggsave("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/som-plot.pdf",
+#        width = 16,
+#        height = 9)
+# 
+# gsea_df %>% 
+#   write_csv("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/glm-pcs-gsea-results.csv")
 
 playing %>% 
   dplyr::select(reduced_dim_id, som_clst_label, som_node, num_cells) %>% 
   spread(reduced_dim_id, som_clst_label) %>% 
   ungroup() %>%
-  arrange(desc(num_cells))
+  arrange(num_cells)
   dplyr::select(-som_node) %>% 
   distinct()
 
