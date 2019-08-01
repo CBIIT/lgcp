@@ -216,7 +216,7 @@ playing %>%
   dplyr::select(-som_node) %>% 
   distinct()
 
-save.image("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/Untitled.RData")
+save.image("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/Untitled-ct-35.RData")
 
 plot_me <- cbind(test_glmpca_poi_30$factors[,1:2], mst$map$mapping[,1]) %>% 
   as.data.frame() %>% 
