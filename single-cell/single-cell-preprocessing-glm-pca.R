@@ -6,7 +6,8 @@ library(tidyverse)
 library(flowCore)
 library(FlowSOM)
 library(glmpca)
-
+library(msigdbr)
+library(clusterProfiler)
 # highly variable gene approach (standard)
 
 sce <- read10xCounts("/Volumes/group09/CCB/Beshiri/Folders_old/CT35/'Omics_data/single_cell_RNAseq/CS024464_Beshiri_CellTagging/CS024464_Beshiri_CellTagging/02-CountsOutput/SCAF636_35-1/outs/filtered_feature_bc_matrix/")
@@ -78,11 +79,82 @@ reducedDim(sce, "GLM_PCA") <- as.matrix(glmpca_poi_30$factors)
 
 sce_glm_pca <- runUMAP(sce, use_dimred = "GLM_PCA", pca = 30)
 
+# gsea
+
+vectorized_loadings <- lapply(glmpca_poi_30$loadings, function(dim_x){
+  vector_x <- as.vector(dim_x)
+  names(vector_x) <- row.names(glmpca_poi_30$loadings)
+  vector_x <- vector_x[order(vector_x, decreasing = T)]
+  return(vector_x)
+})
+
+m_df <-msigdbr()
+m_t2g = m_df %>% dplyr::select(gs_name, entrez_gene) %>% as.data.frame()
+
+pca_loadings_entrez <- lapply(vectorized_loadings, function(dim_x){
+  names(dim_x) <- (data.frame(ensgene = names(dim_x)) %>% 
+                     left_join(grch38 %>% 
+                                 distinct(ensgene, entrez) %>% 
+                                 dplyr::filter(entrez %in% m_t2g$entrez_gene)) %>% 
+                     select(entrez) %>% 
+                     dplyr::filter(!is.na(entrez)))[[1]]
+  dim_x <- dim_x[unique(names(dim_x))]
+  dim_x <- sort(dim_x, decreasing = T)
+  return(dim_x)
+})
+
+pca_loadings_gsea <- lapply(pca_loadings_entrez, GSEA, TERM2GENE = m_t2g, pvalueCutoff = 1)
+pca_loadings_gsea <- lapply(pca_loadings_entrez, function(dim_x){
+  dim_x <- dim_x[dim_x > 0]
+  return(clusterProfiler::enricher(names(dim_x), TERM2GENE = m_t2g, pvalueCutoff = 1))
+})
+
+loadings_gsea_symbols <- lapply(pca_loadings_gsea, function(x){
+  new_result <- x@result %>% 
+    mutate(entrez = str_split(core_enrichment, "/")) %>%
+    unnest(entrez) %>%
+    mutate(entrez = as.integer(entrez)) %>% 
+    left_join(grch38 %>% 
+                dplyr::select(entrez, symbol)) %>% 
+    dplyr::select(-c(core_enrichment, entrez)) %>% 
+    dplyr::distinct() %>% 
+    group_by_at(vars(-symbol)) %>% 
+    summarize(num_genes = n_distinct(symbol),
+              core_enrichment = paste(symbol, collapse = ", "))
+  return(new_result)
+})
+
+gsea_df <- loadings_gsea_symbols %>% 
+  bind_rows(.id = "dim")
+
+loadings_msigdb_symbols <- lapply(pca_loadings_gsea, function(x){
+  new_result <- x@result %>% 
+    mutate(entrez = str_split(geneID, "/")) %>%
+    unnest(entrez) %>%
+    mutate(entrez = as.integer(entrez)) %>% 
+    left_join(grch38 %>% 
+                dplyr::select(entrez, symbol)) %>% 
+    dplyr::select(-c(geneID, entrez)) %>% 
+    dplyr::distinct() %>% 
+    group_by_at(vars(-symbol)) %>% 
+    summarize(num_genes = n_distinct(symbol),
+              geneID = paste(symbol, collapse = ", "))
+  return(new_result)
+})
+
+msigdb_df <- loadings_msigdb_symbols %>% 
+  bind_rows(.id = "dim")
+
+## end gsea
+
+
+
 g <- buildSNNGraph(sce_glm_pca, k=25, use.dimred = 'GLM_PCA', type="rank")
 clust <- igraph::cluster_louvain(g)$membership
 table(clust)
 
-plotReducedDim(sce_glm_pca, "UMAP", colour_by="cluster")
+plotReducedDim(sce_glm_pca, "UMAP")
+plotReducedDim(sce, "UMAP")
 plotReducedDim(sce_glm_pca, "GLM_PCA", colour_by="cluster")
 plotReducedDim(sce_glm_pca, "GLM_PCA", ncomponents = 5, colour_by="cluster")
 plotReducedDim(sce_glm_pca, "GLM_PCA", ncomponents = 6:10, colour_by="cluster")
