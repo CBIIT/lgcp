@@ -3,12 +3,11 @@ library(scater)
 library(scran)
 library(annotables)
 library(tidyverse)
-library(flowCore)
-library(FlowSOM)
 library(glmpca)
-library(msigdbr)
-library(clusterProfiler)
+library(kohonen)
 # highly variable gene approach (standard)
+
+source("single-cell/single-cell-scater-preprocessing-functions.R")
 
 sce <- read10xCounts("/Volumes/group09/CCB/Beshiri/Folders_old/CT35/'Omics_data/single_cell_RNAseq/CS024464_Beshiri_CellTagging/CS024464_Beshiri_CellTagging/02-CountsOutput/SCAF636_35-1/outs/filtered_feature_bc_matrix/")
 

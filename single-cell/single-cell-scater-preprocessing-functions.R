@@ -1,228 +1,145 @@
-library(DropletUtils)
-library(scater)
-library(scran)
-library(BiocSingular)
-library(annotables)
-library(tidyverse)
-library(msigdbr)
-library(clusterProfiler)
-library(flowCore)
-library(FlowSOM)
-source("single-cell/scrna2019/algs/glmpca.R")
+binomial_deviance <- function(x,p,n){
+  term1<-sum(x*log(x/(n*p)), na.rm=TRUE)
+  nx<-n-x
+  term2<-sum(nx*log(nx/(n*(1-p))), na.rm=TRUE)
+  2*(term1+term2)
+}
 
+compute_gene_info <- function(m,gmeta=NULL,mod=c("binomial","multinomial","poisson","geometric")){
+  #m a data matrix with genes=rows
+  #gmeta a pre-existing data frame with gene-level metadata
+  mod<-match.arg(mod)
+  if(!is.null(gmeta)){ stopifnot(nrow(m)==nrow(gmeta)) }
+  gnz<-Matrix::rowSums(m>0)
+  sz<-compute_size_factors(m,mod)
+  gof<-function(g){ gof_func(m[g,],sz,mod) }
+  gof<-as.data.frame(t(vapply(1:nrow(m),gof,FUN.VALUE=rep(0.0,2))))
+  #colnames(gof)<-c("deviance","pval")
+  gmu<-Matrix::rowMeans(m)
+  gvar<-apply(m,1,var)
+  gfano<-ifelse(gvar>0 & gmu>0, gvar/gmu, 0)
+  res<-cbind(nzsum=gnz,fano=gfano,gof)
+  res$pval_fdr<-p.adjust(res$pval,"BH")
+  if(is.null(gmeta)){ return(res) } else { return(cbind(gmeta,res)) }
+}
 
-# read in 10x counts, change this to parameter fed in at command line
-#sce <- read10xCounts("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/02_PrimaryAnalysisOutput/00_FullCellrangerOutputs/SCAF730_190328_G7/outs/filtered_feature_bc_matrix/")
+compute_size_factors <- function(m,mod=c("binomial","multinomial","poisson","geometric")){
+  #given matrix m with samples in the columns
+  #compute size factors suitable for the discrete model in 'mod'
+  mod<-match.arg(mod)
+  sz<-Matrix::colSums(m) #base case, multinomial or binomial
+  if(mod %in% c("multinomial","binomial")){ return(sz) }
+  sz<-log(sz)
+  sz<-sz - mean(sz) #make geometric mean of sz be 1 for poisson, geometric
+  if(mod=="poisson"){ return(exp(sz)) }
+  sz #geometric, use log scale size factors
+}
 
-sce <- read10xCounts("/Volumes/group09/CCB/Beshiri/Folders_old/CT35/'Omics_data/single_cell_RNAseq/CS024464_Beshiri_CellTagging/CS024464_Beshiri_CellTagging/02-CountsOutput/SCAF636_35-1/outs/filtered_feature_bc_matrix/")
+filterDev <- function(sce,nkeep=nrow(sce),dev=c("binomial","poisson","geometric"),ret=c("sce","ranks")){
+  dev<-match.arg(dev)
+  ret<-match.arg(ret)
+  gm<-compute_gene_info(counts(sce),gmeta=rowData(sce),mod=dev)
+  o<-order(gm$deviance,decreasing=TRUE,na.last=FALSE)[1:nkeep]
+  #NA deviance => badly fitting null model=> highly variable gene
+  if(ret=="sce"){
+    res<-sce[o,]
+    return(res[,colSums(counts(res))>0])
+  } else {
+    return(rownames(sce)[o])
+  }
+}
 
-# ADD FEATURE FOR REF ORG HERE!
-location_tidy <- rowData(sce) %>% 
-  as.data.frame() %>% 
-  left_join(grch38 %>% 
-              select(ensgene, chr), by = c("ID" = "ensgene")) %>% 
-  distinct()
-is.mito <- which(location_tidy$chr == "MT")
+filterExpr <- function(sce, nkeep=nrow(sce),ret=c("sce","ranks")){
+  #modified from https://github.com/markrobinsonuzh/scRNAseq_clustering_comparison/blob/master/Rscripts/filtering/filterExpr.R
+  ret<-match.arg(ret)
+  exprsn<-rowMeans(logcounts(sce))
+  o<-order(exprsn,decreasing=TRUE)[1:nkeep]
+  if(ret=="sce"){
+    res<-sce[o,]
+    return(res[,colSums(counts(res))>0])
+  } else {
+    return(rownames(sce)[o])
+  }
+}
 
-sce <- calculateQCMetrics(sce, feature_controls=list(Mito=is.mito), BPPARAM = MulticoreParam(7))
+filterHVG <- function(sce, nkeep=nrow(sce), total_umi="nUMI", ret=c("sce","ranks")){
+  #modified from https://github.com/markrobinsonuzh/scRNAseq_clustering_comparison/blob/master/Rscripts/filtering/filterHVG.R
+  ret<-match.arg(ret)
+  if(!(total_umi %in% colnames(colData(sce)))){ stop("total_umi must be in coldata") }
+  seu<-CreateSeuratObject(counts(sce),meta.data=as.data.frame(colData(sce)),min.cells=0,min.features=0,project="scRNAseq")
+  seu<-NormalizeData(seu,verbose=FALSE)
+  seu<-ScaleData(seu,vars.to.regress=total_umi,verbose=FALSE)
+  seu<-FindVariableFeatures(seu,selection.method="dispersion",nfeatures=nkeep,verbose=FALSE)
+  vf<-head(VariableFeatures(seu), nkeep)
+  #sometimes Seurat coerces rownames, so use numeric IDs instead
+  o<-match(vf,rownames(seu))
+  if(ret=="sce"){
+    res<-sce[o, ]
+    return(res[,colSums(counts(res))>0])
+  } else {
+    return(rownames(sce)[o])
+  }
+}
 
-# remove cells with log-library sizes that are more than 3 MADs below the median
-qc.lib <- isOutlier(log(sce$total_counts), nmads=3, type="lower")
-# remove cells where the log-transformed number of expressed genes is 3 MADs below the median
-qc.nexprs <- isOutlier(log(sce$total_features_by_counts), nmads=3,
-                        type="lower")
-# remove cells where the number of mito genes is 3 MADs above the median
-qc.mito <- isOutlier(sce$pct_counts_Mito, nmads=3, type="higher")
+gof_func <- function(x,sz,mod=c("binomial","multinomial","poisson","geometric")){
+  #Let n=colSums(original matrix where x is a row)
+  #if binomial, assumes sz=n, required! So sz>0 for whole vector
+  #if poisson, assumes sz=n/geometric_mean(n), so again all of sz>0
+  #if geometric, assumes sz=log(n/geometric_mean(n)) which helps numerical stability. Here sz can be <>0
+  #note sum(x)/sum(sz) is the (scalar) MLE for "mu" in Poisson and "p" in Binomial
+  mod<-match.arg(mod)
+  fit<-list(deviance=0,df.residual=length(x)-1,converged=TRUE)
+  if(mod=="multinomial"){
+    fit$deviance<-multinomial_deviance(x,sum(x)/sum(sz))
+  } else if(mod=="binomial"){
+    fit$deviance<-binomial_deviance(x,sum(x)/sum(sz),sz)
+  } else if(mod=="poisson"){
+    fit$deviance<-poisson_deviance(x,sum(x)/sum(sz),sz)
+  } else if(mod=="geometric"){
+    if(any(x>0)) {
+      fit<-glm(x~offset(sz),family=MASS::negative.binomial(theta=1))
+    }
+  } else { stop("invalid model") }
+  if(fit$converged){
+    dev<-fit$deviance
+    df<-fit$df.residual #length(x)-1
+    pval<-pchisq(dev,df,lower.tail=FALSE)
+    res<-c(dev,pval)
+  } else {
+    res<-rep(NA,2)
+  }
+  names(res)<-c("deviance","pval")
+  res
+}
 
-discard <- qc.lib | qc.nexprs | qc.mito
+multinomial_deviance <- function(x,p){
+  -2*sum(x*log(p))
+}
 
-# Summarize the number of cells removed for each reason.
-cells_removed_summary_df <- DataFrame(LibSize=sum(qc.lib),
-          NExprs=sum(qc.nexprs),
-          MitoProp=sum(qc.mito),
-          Total=sum(discard))
+poisson_deviance <- function(x,mu,sz){
+  #assumes log link and size factor sz on the same scale as x (not logged)
+  #stopifnot(all(x>=0 & sz>0))
+  2*sum(x*log(x/(sz*mu)),na.rm=TRUE)-2*sum(x-sz*mu)
+}
 
-# Retain only high-quality cells in the SingleCellExperiment.
-sce <- sce[,!discard]
-
-## normalization
-sce <- scater::normalize(sce)
-
-## feature selection
-fit <- trendVar(sce, use.spikes = F)
-dec <- decomposeVar(sce, fit)
-hvg <- rownames(dec[dec$bio > 0, ]) # ~4k genes
-
-## dimensionality reduction
-set.seed(1234)
-sce <- runPCA(sce, 
-              feature_set = hvg)
-
-sce <- runUMAP(sce)
-## SC3 requires this column to be appended
-rowData(sce)$feature_symbol <- rowData(sce)$Symbol
-## SC3 cannot handle sparse matrixes/hdf nonsense
-counts(sce) <- as.matrix(counts(sce))
-logcounts(sce) <- as.matrix(logcounts(sce))
-
-filtered_counts <- counts(sce)
-filtered_counts <- filtered_counts[rowSums(filtered_counts) > 0,]
-
-test_glmpca_poi_30 <- glmpca(filtered_counts,
-                          30,
-                          fam = "poi")
-
-vectorized_loadings <- lapply(test_glmpca_poi_30$loadings, function(dim_x){
-  vector_x <- as.vector(dim_x)
-  names(vector_x) <- row.names(test_glmpca_poi_30$loadings)
-  vector_x <- vector_x[order(vector_x, decreasing = T)]
-  return(vector_x)
-})
-
-m_df <-msigdbr()
-m_t2g = m_df %>% dplyr::select(gs_name, entrez_gene) %>% as.data.frame()
-
-pca_loadings_entrez <- lapply(vectorized_loadings, function(dim_x){
-  names(dim_x) <- (data.frame(ensgene = names(dim_x)) %>% 
-                     left_join(grch38 %>% 
-                                 distinct(ensgene, entrez) %>% 
-                                 dplyr::filter(entrez %in% m_t2g$entrez_gene)) %>% 
-                     select(entrez) %>% 
-                     dplyr::filter(!is.na(entrez)))[[1]]
-  dim_x <- dim_x[unique(names(dim_x))]
-  dim_x <- sort(dim_x, decreasing = T)
-  return(dim_x)
-})
-
-pca_loadings_gsea <- lapply(pca_loadings_entrez, GSEA, TERM2GENE = m_t2g, pvalueCutoff = 1)
-
-loadings_gsea_symbols <- lapply(pca_loadings_gsea, function(x){
-  new_result <- x@result %>% 
-    mutate(entrez = str_split(core_enrichment, "/")) %>%
-    unnest(entrez) %>%
-    mutate(entrez = as.integer(entrez)) %>% 
-    left_join(grch38 %>% 
-                dplyr::select(entrez, symbol)) %>% 
-    dplyr::select(-c(core_enrichment, entrez)) %>% 
-    dplyr::distinct() %>% 
-    group_by_at(vars(-symbol)) %>% 
-    summarize(num_genes = n_distinct(symbol),
-      core_enrichment = paste(symbol, collapse = ", "))
-  return(new_result)
-})
-
-
-gsea_df <- loadings_gsea_symbols %>% 
-  bind_rows(.id = "dim")
-
-
-test_clust <- lapply(test_glmpca_poi_30$factors, kmeans, centers = 2, iter.max = 100, nstart = 10)
-
-plot_df <- data.frame(test_glmpca_poi_30$factors,
-                      Barcode = colData(sce)$Barcode) %>% 
-  gather(reduced_dim_id, value, -Barcode) %>% 
-  bind_cols(lapply(test_clust, `[[`, 1) %>%
-              lapply(as.data.frame) %>% 
-              bind_rows(.id = "dim_id") %>% 
-              setNames(c("dim_id", "kmeans_id"))) %>% 
-  mutate(reduced_dim_id = factor(reduced_dim_id, levels = paste0("dim", c(1:30))))
-
-kmeans_dim_id <- plot_df %>%
-  group_by(reduced_dim_id, kmeans_id) %>%
-  summarize(cluster_median = median(value)) %>%
-  arrange(reduced_dim_id, cluster_median) %>%
-  ungroup() %>% 
-  mutate(cluster_id = factor(rep(c("low", "high"), 30), levels = c("low", "high")))
-
-plot_df <- plot_df %>% 
-  left_join(kmeans_dim_id) 
-
-plot_df %>% 
-  ggplot(aes(value, fill = cluster_id)) +
-  geom_histogram(bins = 100) +
-  facet_wrap(~reduced_dim_id) +
-  theme_bw()
-
-flow_frame <- new("flowFrame",
-                  exprs = as.matrix(test_glmpca_poi_30$factors))
-
-som <- ReadInput(flow_frame)
-som <- BuildSOM(som, xdim = 5, ydim = 5)
-mst <- BuildMST(som)
-
-plot_df <- plot_df %>% 
-  left_join(data.frame(Barcode = colData(sce)$Barcode,
-                       som_node = mst$map$mapping[,1])) %>% 
-  left_join(data.frame(som_node = c(1:nrow(mst$MST$l)),
-            mst_x = mst$MST$l[,1],
-            mst_y = mst$MST$l[,2]))
-
-plot_df %>%
-  ggplot(aes(mst_x, mst_y, color = cluster_id)) +
-  geom_point() +
-  facet_wrap(~reduced_dim_id) +
-  theme_void() +
-  theme(legend.position = "none")
-
-som_nodes_stats <- plot_df %>% 
-  group_by(som_node, reduced_dim_id) %>% 
-  summarise(som_mean = mean(value),
-            som_median = median(value)) %>%
-  left_join(plot_df %>% 
-              group_by(som_node, reduced_dim_id) %>%
-              count(cluster_id) %>% 
-              ungroup() %>% 
-              spread(cluster_id,
-                     n,
-                     fill = 0) %>% 
-              mutate(fraction_high = high/(low+high),
-                     num_cells = low+high)) %>% 
-  left_join(kmeans_dim_id %>% 
-              dplyr::select(reduced_dim_id, cluster_id, cluster_median) %>% 
-              spread(cluster_id, cluster_median) %>% 
-              setNames(c("reduced_dim_id", "kmns_lo_clstr_med", "kmns_hi_clstr_med")))
-
-playing <- som_nodes_stats %>% 
-  mutate(som_clst_label = case_when(som_median <= kmns_lo_clstr_med ~ "Negative",
-                                    som_median >= kmns_hi_clstr_med ~ "Positive",
-                                    som_median > kmns_lo_clstr_med && fraction_high < 0.25 ~ "Low",
-                                    som_median < kmns_hi_clstr_med && fraction_high > 0.75 ~ "High",
-                                    T ~ "Neutral" ),
-         som_clst_label = factor(som_clst_label, levels = c("Negative", "Low", "Neutral", "High", "Positive")))
-
-playing %>%
-  left_join(data.frame(som_node = c(1:nrow(mst$MST$l)),
-                       mst_x = mst$MST$l[,1],
-                       mst_y = mst$MST$l[,2])) %>% 
-  ggplot(aes(mst_x, mst_y, color = som_clst_label, size = num_cells, alpha = 0.25)) +
-  geom_point(shape = 21) +
-  facet_wrap(~reduced_dim_id) +
-  theme_void() +
-  scale_color_manual(values = c("darkblue", "lightblue", "grey", "red", "darkred")) +
-  theme(legend.position = "none")
-
-# ggsave("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/som-plot.pdf",
-#        width = 16,
-#        height = 9)
-# 
-# gsea_df %>% 
-#   write_csv("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/glm-pcs-gsea-results.csv")
-
-playing %>% 
-  dplyr::select(reduced_dim_id, som_clst_label, som_node, num_cells) %>% 
-  spread(reduced_dim_id, som_clst_label) %>% 
-  ungroup() %>%
-  arrange(num_cells)
-  dplyr::select(-som_node) %>% 
-  distinct()
-
-save.image("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/Untitled-ct-35.RData")
-
-plot_me <- cbind(test_glmpca_poi_30$factors[,1:2], mst$map$mapping[,1]) %>% 
-  as.data.frame() %>% 
-  setNames(c("dim1", "dim2", "som_node_id")) %>%
-  left_join(cluster_mapping)
-
-  ggplot(aes(dim1, dim2, color = factor(consensus_cluster))) +
-  geom_point() 
-
+rank_all_genes <- function(sce, total_umi="nUMI"){
+  #sce=SingleCellExperiment object with assays "counts" and "logcounts"
+  #returns a dataframe with same rownames as sce
+  #columns: dev,hvg,expr
+  #each column is the rank order of genes by each criteria
+  #low rank=highly informative gene
+  gg<-rownames(sce)
+  gfs<-list()
+  gfs$dev<-filterDev(sce,ret="ranks")
+  gfs$expr<-filterExpr(sce,ret="ranks")
+  gfs$hvg<-filterHVG(sce,total_umi=total_umi,ret="ranks")
+  res<-list()
+  for(i in names(gfs)){
+    rk<-seq_along(gfs[[i]])
+    names(rk)<-gfs[[i]]
+    res[[i]]<-rk[gg]
+  }
+  res<-as.data.frame(res)
+  rownames(res)<-gg
+  res
+}
