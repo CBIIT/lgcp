@@ -75,7 +75,6 @@ filtered_counts <- filtered_counts[rowSums(filtered_counts) > 0,]
 glmpca_poi_30 <- glmpca(as.matrix(filtered_counts),
                              30,
                              fam = "poi")
-save.image("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/Untitled-ct-35.RData")
 
 reducedDim(sce, "GLM_PCA") <- as.matrix(glmpca_poi_30$factors)
 
@@ -143,3 +142,5 @@ deg <- findMarkers(sce_glm_pca, cluster_info$cluster_id, direction = "up") %>%
   lapply(rownames_to_column, "ensgene") %>% 
   bind_rows(.id = "cluster_id") %>% 
   left_join(grch38)
+
+save.image("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/Untitled-ct-35.RData")
