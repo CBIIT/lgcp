@@ -5,6 +5,9 @@ library(annotables)
 library(tidyverse)
 library(glmpca)
 library(kohonen)
+library(pvclust)
+library(ggraph)
+library(tidygraph)
 # highly variable gene approach (standard)
 
 source("single-cell/single-cell-scater-preprocessing-functions.R")
@@ -78,108 +81,65 @@ reducedDim(sce, "GLM_PCA") <- as.matrix(glmpca_poi_30$factors)
 
 sce_glm_pca <- runUMAP(sce, use_dimred = "GLM_PCA", pca = 30)
 
-# gsea
+som_grid <- somgrid(xdim = 30, ydim=30, topo="hexagonal")
+# Finally, train the SOM, options for the number of iterations,
+# the learning rates, and the neighbourhood are available
+som_model <- som(reducedDim(sce, "GLM_PCA"), 
+                 grid=som_grid, 
+                 rlen=10000, 
+                 alpha=c(0.05,0.01), 
+                 keep.data = TRUE )
 
-vectorized_loadings <- lapply(glmpca_poi_30$loadings, function(dim_x){
-  vector_x <- as.vector(dim_x)
-  names(vector_x) <- row.names(glmpca_poi_30$loadings)
-  vector_x <- vector_x[order(vector_x, decreasing = T)]
-  return(vector_x)
-})
+mydata <- getCodes(som_model)
 
-m_df <-msigdbr()
-m_t2g = m_df %>% dplyr::select(gs_name, entrez_gene) %>% as.data.frame()
+pv_clust <- pvclust(t(mydata),
+                    parallel = T)
 
-pca_loadings_entrez <- lapply(vectorized_loadings, function(dim_x){
-  names(dim_x) <- (data.frame(ensgene = names(dim_x)) %>% 
-                     left_join(grch38 %>% 
-                                 distinct(ensgene, entrez) %>% 
-                                 dplyr::filter(entrez %in% m_t2g$entrez_gene)) %>% 
-                     select(entrez) %>% 
-                     dplyr::filter(!is.na(entrez)))[[1]]
-  dim_x <- dim_x[unique(names(dim_x))]
-  dim_x <- sort(dim_x, decreasing = T)
-  return(dim_x)
-})
+cor_data <- as.data.frame(t(mydata))
 
-pca_loadings_gsea <- lapply(pca_loadings_entrez, GSEA, TERM2GENE = m_t2g, pvalueCutoff = 1)
-pca_loadings_gsea <- lapply(pca_loadings_entrez, function(dim_x){
-  dim_x <- dim_x[dim_x > 0]
-  return(clusterProfiler::enricher(names(dim_x), TERM2GENE = m_t2g, pvalueCutoff = 1))
-})
+cor_test_results <- lapply(seq_along(1:(ncol(cor_data)-1)),
+       function(col_index){
+         dim_x <- cor_data[,col_index]
+         cols_to_test_start <- col_index + 1
+         cols_to_test_end <- ncol(cor_data)
+         colnames_index <- cols_to_test_start:cols_to_test_end
+         dims_y <- cor_data[,cols_to_test_start:cols_to_test_end]
+         dims_y <- as.data.frame(dims_y)
+         colnames(dims_y) <- colnames(cor_data)[colnames_index]
+         subs_cor_test_results <- lapply(dims_y, cor.test, y = dim_x) %>% 
+           lapply(broom::tidy) %>% 
+           bind_rows(.id = "dim_y") %>% 
+           mutate(dim_x = rep(colnames(cor_data)[col_index], nrow(.)))
+         return(subs_cor_test_results)
+       }) %>% 
+  bind_rows() %>% 
+  mutate(adj.p.value = p.adjust(p.value)) %>% 
+  select(dim_x, everything())
 
-loadings_gsea_symbols <- lapply(pca_loadings_gsea, function(x){
-  new_result <- x@result %>% 
-    mutate(entrez = str_split(core_enrichment, "/")) %>%
-    unnest(entrez) %>%
-    mutate(entrez = as.integer(entrez)) %>% 
-    left_join(grch38 %>% 
-                dplyr::select(entrez, symbol)) %>% 
-    dplyr::select(-c(core_enrichment, entrez)) %>% 
-    dplyr::distinct() %>% 
-    group_by_at(vars(-symbol)) %>% 
-    summarize(num_genes = n_distinct(symbol),
-              core_enrichment = paste(symbol, collapse = ", "))
-  return(new_result)
-})
+# create a correlation matrix where insignificant correlations are set to 0, then do the graphing
+graph <- cor_test_results %>% 
+  mutate(weight = if_else(estimate > 0.5, estimate, 0),
+         V1 = dim_x,
+         V2 = dim_y) %>% 
+  select(V1,V2,weight) %>% 
+  graph_from_data_frame(directed = F)
 
-gsea_df <- loadings_gsea_symbols %>% 
-  bind_rows(.id = "dim")
+plot.igraph(graph, edge.width = E(graph)$edge.width, 
+            edge.color = "blue", vertex.color = "white", vertex.size = 1,
+            vertex.frame.color = NA, vertex.label.color = "grey30")
+clp <- cluster_walktrap(graph)
 
-loadings_msigdb_symbols <- lapply(pca_loadings_gsea, function(x){
-  new_result <- x@result %>% 
-    mutate(entrez = str_split(geneID, "/")) %>%
-    unnest(entrez) %>%
-    mutate(entrez = as.integer(entrez)) %>% 
-    left_join(grch38 %>% 
-                dplyr::select(entrez, symbol)) %>% 
-    dplyr::select(-c(geneID, entrez)) %>% 
-    dplyr::distinct() %>% 
-    group_by_at(vars(-symbol)) %>% 
-    summarize(num_genes = n_distinct(symbol),
-              geneID = paste(symbol, collapse = ", "))
-  return(new_result)
-})
+som_model$unit.classif
 
-msigdb_df <- loadings_msigdb_symbols %>% 
-  bind_rows(.id = "dim")
+clp$membership
 
-## end gsea
-k_values <- seq(from = 1, to = 20, by = 1)
-graphs <- lapply(k_values,
-                 function(x){
-                   g <- buildSNNGraph(sce_glm_pca, k=x, d = 10, use.dimred = 'GLM_PCA', type="rank")
-                   clust <- igraph::cluster_walktrap(g)$membership
-                   clust_mod <- clusterModularity(g, clust, get.values=TRUE)
-                   return(clust_mod)
-                 })
+cluster_info <- data.frame(Barcode = rownames(reducedDim(sce_glm_pca, "GLM_PCA")),
+                           som_id = som_model$unit.classif) %>% 
+  left_join(data.frame(som_id = c(1:length(clp$membership)),
+                       cluster_id = clp$membership))
 
-
-g <- buildSNNGraph(sce_glm_pca, k=25, use.dimred = 'GLM_PCA', type="rank")
-clust <- igraph::cluster_optimal(g)$membership
-table(clust)
-
-plotReducedDim(sce_glm_pca, "UMAP", colour_by="ENSG00000079689")
-plotReducedDim(sce, "UMAP")
-plotReducedDim(sce_glm_pca, "GLM_PCA", colour_by="cluster")
-plotReducedDim(sce_glm_pca, "UMAP", ncomponents = 5, colour_by=c("ENSG00000142515", "ENSG00000079689"))
-plotReducedDim(sce_glm_pca, "GLM_PCA", ncomponents = 6:10, colour_by="cluster")
-
-
-flow_frame <- new("flowFrame",
-                  exprs = as.matrix(glmpca_poi_30$factors))
-
-som <- ReadInput(flow_frame)
-som <- BuildSOM(som, xdim = 5, ydim = 5)
-mst <- BuildMST(som)
-
-cluster_diff <- scran::findMarkers(sce, mst$map$mapping[,1])
-
-cluster_diff %>% 
+deg <- findMarkers(sce_glm_pca, cluster_info$cluster_id, direction = "up") %>% 
   lapply(as.data.frame) %>% 
+  lapply(rownames_to_column, "ensgene") %>% 
   bind_rows(.id = "cluster_id") %>% 
-  mutate(cluster_id = factor(cluster_id, levels = c(1:25))) %>% 
-  ggplot(aes(p.value)) + 
-  geom_histogram(binwidth = 0.05) +
-  facet_wrap(~cluster_id) +
-  theme_bw()
+  left_join(grch38)
