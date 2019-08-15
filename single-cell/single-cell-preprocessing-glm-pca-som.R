@@ -137,7 +137,10 @@ cluster_info <- data.frame(Barcode = rownames(reducedDim(sce_glm_pca, "GLM_PCA")
   left_join(data.frame(som_id = c(1:length(clp$membership)),
                        cluster_id = clp$membership))
 
-deg <- findMarkers(sce_glm_pca, cluster_info$cluster_id, direction = "up") %>% 
+deg <- findMarkers(sce_glm_pca,
+                   cluster_info$cluster_id,
+                   direction = "up",
+                   pval.type="all") %>% 
   lapply(as.data.frame) %>% 
   lapply(rownames_to_column, "ensgene") %>% 
   bind_rows(.id = "cluster_id") %>% 
