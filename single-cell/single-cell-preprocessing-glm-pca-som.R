@@ -146,4 +146,10 @@ deg <- findMarkers(sce_glm_pca,
   bind_rows(.id = "cluster_id") %>% 
   left_join(grch38)
 
+deg %>% 
+  dplyr::filter(FDR < 0.05) %>% 
+  View()
+
+sce_glm_pca$Clusters = factor(cluster_info$cluster_id)
+
 save.image("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/Untitled-ct-35.RData")
