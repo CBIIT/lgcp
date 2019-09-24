@@ -5,14 +5,15 @@ library(annotables)
 library(tidyverse)
 library(glmpca)
 library(kohonen)
-library(pvclust)
 library(ggraph)
 library(tidygraph)
+library(igraph)
+library(Seurat)
 # highly variable gene approach (standard)
 
 source("single-cell/single-cell-scater-preprocessing-functions.R")
 
-sce <- read10xCounts("/Volumes/group09/CCB/Beshiri/Folders_old/CT35/'Omics_data/single_cell_RNAseq/CS024464_Beshiri_CellTagging/CS024464_Beshiri_CellTagging/02-CountsOutput/SCAF636_35-1/outs/filtered_feature_bc_matrix/")
+sce <- read10xCounts("/Volumes/Group09/CCB/Beshiri/Folders_old/CT35/'Omics_data/single_cell_RNAseq/lineage-tracing-May-2018/CT35_10x_filtered_gbm")
 
 # ADD FEATURE FOR REF ORG HERE!
 location_tidy <- rowData(sce) %>% 
@@ -90,9 +91,6 @@ som_model <- som(reducedDim(sce, "GLM_PCA"),
                  keep.data = TRUE )
 
 mydata <- getCodes(som_model)
-
-pv_clust <- pvclust(t(mydata),
-                    parallel = T)
 
 cor_data <- as.data.frame(t(mydata))
 
