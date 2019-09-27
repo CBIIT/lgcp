@@ -92,8 +92,11 @@ som_model <- som(reducedDim(sce, "GLM_PCA"),
 
 mydata <- getCodes(som_model)
 
+# old code for graph structure
+
 cor_data <- as.data.frame(t(mydata))
 
+# calculate correlation coefficients between all nodes
 cor_test_results <- lapply(seq_along(1:(ncol(cor_data)-1)),
        function(col_index){
          dim_x <- cor_data[,col_index]
@@ -103,37 +106,72 @@ cor_test_results <- lapply(seq_along(1:(ncol(cor_data)-1)),
          dims_y <- cor_data[,cols_to_test_start:cols_to_test_end]
          dims_y <- as.data.frame(dims_y)
          colnames(dims_y) <- colnames(cor_data)[colnames_index]
-         subs_cor_test_results <- lapply(dims_y, cor.test, y = dim_x) %>% 
-           lapply(broom::tidy) %>% 
-           bind_rows(.id = "dim_y") %>% 
+         subs_cor_test_results <- lapply(dims_y, cor.test, y = dim_x) %>%
+           lapply(broom::tidy) %>%
+           bind_rows(.id = "dim_y") %>%
            mutate(dim_x = rep(colnames(cor_data)[col_index], nrow(.)))
          return(subs_cor_test_results)
-       }) %>% 
-  bind_rows() %>% 
-  mutate(adj.p.value = p.adjust(p.value)) %>% 
+       }) %>%
+  bind_rows() %>%
+  mutate(adj.p.value = p.adjust(p.value, method = "BH")) %>%
   select(dim_x, everything())
 
-# create a correlation matrix where insignificant correlations are set to 0, then do the graphing
-graph <- cor_test_results %>% 
-  mutate(weight = if_else(estimate > 0.5, estimate, 0),
-         V1 = dim_x,
-         V2 = dim_y) %>% 
-  select(V1,V2,weight) %>% 
-  graph_from_data_frame(directed = F)
+square_cor_test <- lapply(cor_data, function(som_code){
+  som_code_corr <- lapply(cor_data, cor.test, y = som_code) %>%
+    lapply(broom::tidy) %>%
+    bind_rows(.id = "dim_y")
+  return(som_code_corr)
+})
 
-plot.igraph(graph, edge.width = E(graph)$edge.width, 
-            edge.color = "blue", vertex.color = "white", vertex.size = 1,
-            vertex.frame.color = NA, vertex.label.color = "grey30")
-clp <- cluster_walktrap(graph)
+# # create a correlation distance matrix
+# graph <- cor_test_results %>% 
+#   mutate(weight = 1 - estimate,
+#     V1 = dim_x,
+#     V2 = dim_y) %>% 
+#   select(V1,V2,weight) %>% 
+#   graph_from_data_frame(directed = F)
 
-som_model$unit.classif
+# mst using euclidean distance
+mst_euc <- mydata %>% 
+  stats::dist(method = "euclidean") %>% 
+  as.matrix() %>% 
+  igraph::graph.adjacency(mode = "undirected",
+                          weighted = T) %>% 
+  igraph::minimum.spanning.tree()
 
-clp$membership
+mst_euc.layout <- igraph::layout_with_kk(mst_euc)
+
+mst_euc.communities <- edge.betweenness.community(mst_euc,
+                                                  weights=NULL,
+                                                  directed=FALSE)
+mst_euc.clustering <- make_clusters(mst_euc,
+                                    membership=mst_euc.communities$membership)
+V(mst_euc)$color <- mst.communities_euc$membership + 1
+
+plot(mst_euc.clustering,
+     mst_euc,
+     layout = mst_euc.layout,
+     vertex.label = NA)
+
+# mst using pearson distance
+mst_pearson <- mydata %>% 
+  cor_dist("pearson") %>% 
+  igraph::graph.adjacency(mode = "undirected",
+                          weighted = T) %>% 
+  igraph::minimum.spanning.tree()
+
+mst_pearson_layout <- igraph::layout_with_kk(mst_pearson)
+
+mst_pearson.communities <- edge.betweenness.community(mst_pearson, weights=NULL, directed=FALSE)
+mst_pearson.clustering <- make_clusters(mst_pearson, membership=mst_pearson.communities$membership)
+V(mst_pearson)$color <- mst_pearson.communities$membership + 1
+
+plot(mst_pearson.clustering, mst_pearson, layout = mst_pearson_layout)
 
 cluster_info <- data.frame(Barcode = rownames(reducedDim(sce_glm_pca, "GLM_PCA")),
                            som_id = som_model$unit.classif) %>% 
-  left_join(data.frame(som_id = c(1:length(clp$membership)),
-                       cluster_id = clp$membership))
+  left_join(data.frame(som_id = c(1:length(mst_pearson.communities$membership)),
+                       cluster_id = mst_pearson.communities$membership))
 
 deg <- findMarkers(sce_glm_pca,
                    cluster_info$cluster_id,
@@ -150,4 +188,12 @@ deg %>%
 
 sce_glm_pca$Clusters = factor(cluster_info$cluster_id)
 
-save.image("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/Untitled-ct-35.RData")
+save.image("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/ct-35-v1.RData")
+
+plotReducedDim(sce, use_dimred = "UMAP")
+plotReducedDim(sce, use_dimred = "PCA")
+
+plotReducedDim(sce_glm_pca, use_dimred = "UMAP")
+plotReducedDim(sce_glm_pca, use_dimred = "GLM_PCA", ncomponents = 5)
+plotReducedDim(sce_glm_pca, use_dimred = "GLM_PCA", ncomponents = 6:10)
+

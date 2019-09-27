@@ -1,3 +1,9 @@
+cor_dist <- function(som_codes, method){
+  corr_mat <- cor(t(som_codes),
+                  method = method)
+  return(1 - corr_mat)
+}
+
 binomial_deviance <- function(x,p,n){
   term1<-sum(x*log(x/(n*p)), na.rm=TRUE)
   nx<-n-x
