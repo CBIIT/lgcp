@@ -74,8 +74,8 @@ filtered_counts <- counts(sce_d)
 filtered_counts <- filtered_counts[rowSums(filtered_counts) > 0,]
 
 glmpca_poi_30 <- glmpca(as.matrix(filtered_counts),
-                             30,
-                             fam = "poi")
+                        30,
+                        fam = "poi")
 
 reducedDim(sce, "GLM_PCA") <- as.matrix(glmpca_poi_30$factors)
 
@@ -98,20 +98,20 @@ cor_data <- as.data.frame(t(mydata))
 
 # calculate correlation coefficients between all nodes
 cor_test_results <- lapply(seq_along(1:(ncol(cor_data)-1)),
-       function(col_index){
-         dim_x <- cor_data[,col_index]
-         cols_to_test_start <- col_index + 1
-         cols_to_test_end <- ncol(cor_data)
-         colnames_index <- cols_to_test_start:cols_to_test_end
-         dims_y <- cor_data[,cols_to_test_start:cols_to_test_end]
-         dims_y <- as.data.frame(dims_y)
-         colnames(dims_y) <- colnames(cor_data)[colnames_index]
-         subs_cor_test_results <- lapply(dims_y, cor.test, y = dim_x) %>%
-           lapply(broom::tidy) %>%
-           bind_rows(.id = "dim_y") %>%
-           mutate(dim_x = rep(colnames(cor_data)[col_index], nrow(.)))
-         return(subs_cor_test_results)
-       }) %>%
+                           function(col_index){
+                             dim_x <- cor_data[,col_index]
+                             cols_to_test_start <- col_index + 1
+                             cols_to_test_end <- ncol(cor_data)
+                             colnames_index <- cols_to_test_start:cols_to_test_end
+                             dims_y <- cor_data[,cols_to_test_start:cols_to_test_end]
+                             dims_y <- as.data.frame(dims_y)
+                             colnames(dims_y) <- colnames(cor_data)[colnames_index]
+                             subs_cor_test_results <- lapply(dims_y, cor.test, y = dim_x) %>%
+                               lapply(broom::tidy) %>%
+                               bind_rows(.id = "dim_y") %>%
+                               mutate(dim_x = rep(colnames(cor_data)[col_index], nrow(.)))
+                             return(subs_cor_test_results)
+                           }) %>%
   bind_rows() %>%
   mutate(adj.p.value = p.adjust(p.value, method = "BH")) %>%
   select(dim_x, everything())
@@ -146,7 +146,7 @@ mst_euc.communities <- edge.betweenness.community(mst_euc,
                                                   directed=FALSE)
 mst_euc.clustering <- make_clusters(mst_euc,
                                     membership=mst_euc.communities$membership)
-V(mst_euc)$color <- mst.communities_euc$membership + 1
+V(mst_euc)$color <- mst_euc.communities$membership + 1
 
 plot(mst_euc.clustering,
      mst_euc,
@@ -173,6 +173,80 @@ cluster_info <- data.frame(Barcode = rownames(reducedDim(sce_glm_pca, "GLM_PCA")
   left_join(data.frame(som_id = c(1:length(mst_pearson.communities$membership)),
                        cluster_id = mst_pearson.communities$membership))
 
+# load in signatures
+
+ar_reference_cpm <- read_csv("~/lgcp/rnaseq/analysis-scripts/ar_reference_beltran_cpm_grch37.csv")
+
+neuro_reference_cpm <- read_csv("~/lgcp/rnaseq/analysis-scripts/neuro_reference_beltran_cpm_grch37.csv")
+
+neuro <- read_csv("~/lgcp/rnaseq/analysis-scripts/neuro_reference_vpca_loadings_grch37.csv")
+
+ar_signature_weights <- read_csv("~/lgcp/rnaseq/analysis-scripts/ar_signature_weights_Mendiratta.csv")
+
+logcounts(sce_glm_pca)[rownames(logcounts(sce_glm_pca)) %in% ar_reference_cpm$Geneid,] %>% 
+  as.matrix() %>% 
+  hist()
+
+counts(sce_glm_pca)[rownames(logcounts(sce_glm_pca)) %in% neuro_reference_cpm$Geneid,] %>% 
+  as.matrix() %>% 
+  hist()
+
+logcounts(sce_glm_pca)[rowData(sce_glm_pca)$Symbol %in% neuro$Loading,] %>% 
+  as.matrix() %>% 
+  heatmap()
+
+logcounts(sce_glm_pca)[rownames(logcounts(sce_glm_pca)) %in% ar_signature_weights$`Ensemble ID`,] %>% 
+  as.matrix() %>% 
+  as.data.frame() %>% 
+  lapply(cor, y = ar_signature_weights$`BinReg Coef`)
+
+barcode_ar_signature_score <- vector(length = ncol(sce_glm_pca))
+for(i in 1:ncol(sce_glm_pca)){
+  scored <- data.frame(logcounts = logcounts(sce_glm_pca)[rownames(logcounts(sce_glm_pca)) %in% ar_signature_weights$`Ensemble ID`,i],
+             ensgene = names(logcounts(sce_glm_pca)[rownames(logcounts(sce_glm_pca)) %in% ar_signature_weights$`Ensemble ID`,i])) %>% 
+    left_join(ar_signature_weights, by = c("ensgene" = "Ensemble ID")) %>% 
+    transmute(score = logcounts*`BinReg Coef`)
+  
+  barcode_ar_signature_score[i] <- sum(scored$score)
+}
+
+neuro_joined <- neuro %>% 
+  left_join(as.data.frame(rowData(sce_glm_pca)), by = c("Loading" = "Symbol"))
+
+barcode_neuro_score <- vector(length = ncol(sce_glm_pca))
+for(i in 1:ncol(sce_glm_pca)){
+  scored <- data.frame(logcounts = logcounts(sce_glm_pca)[rowData(sce_glm_pca)$Symbol %in% neuro$Loading,i],
+                       ensgene = names(logcounts(sce_glm_pca)[rowData(sce_glm_pca)$Symbol %in% neuro$Loading,i])) %>% 
+    left_join(neuro_joined, by = c("ensgene" = "ID")) %>% 
+    transmute(score = logcounts*PC1.v)
+  
+  barcode_neuro_score[i] <- sum(scored$score)
+}
+
+
+barcode_ar_signature_score_count <- vector(length = ncol(sce_glm_pca))
+for(i in 1:ncol(sce_glm_pca)){
+  scored <- data.frame(logcounts = counts(sce_glm_pca)[rownames(counts(sce_glm_pca)) %in% ar_signature_weights$`Ensemble ID`,i],
+                       ensgene = names(counts(sce_glm_pca)[rownames(counts(sce_glm_pca)) %in% ar_signature_weights$`Ensemble ID`,i])) %>% 
+    left_join(ar_signature_weights, by = c("ensgene" = "Ensemble ID")) %>% 
+    transmute(score = logcounts*`BinReg Coef`)
+  
+  barcode_ar_signature_score_count[i] <- sum(scored$score)
+}
+
+barcode_neuro_score_count <- vector(length = ncol(sce_glm_pca))
+for(i in 1:ncol(sce_glm_pca)){
+  scored <- data.frame(logcounts = counts(sce_glm_pca)[rowData(sce_glm_pca)$Symbol %in% neuro$Loading,i],
+                       ensgene = names(counts(sce_glm_pca)[rowData(sce_glm_pca)$Symbol %in% neuro$Loading,i])) %>% 
+    left_join(neuro_joined, by = c("ensgene" = "ID")) %>% 
+    transmute(score = logcounts*PC1.v)
+  
+  barcode_neuro_score_count[i] <- sum(scored$score)
+}
+
+save.image("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/ct-35-v1.RData")
+
+
 deg <- findMarkers(sce_glm_pca,
                    cluster_info$cluster_id,
                    direction = "up",
@@ -188,7 +262,6 @@ deg %>%
 
 sce_glm_pca$Clusters = factor(cluster_info$cluster_id)
 
-save.image("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/ct-35-v1.RData")
 
 plotReducedDim(sce, use_dimred = "UMAP")
 plotReducedDim(sce, use_dimred = "PCA")
@@ -196,4 +269,3 @@ plotReducedDim(sce, use_dimred = "PCA")
 plotReducedDim(sce_glm_pca, use_dimred = "UMAP")
 plotReducedDim(sce_glm_pca, use_dimred = "GLM_PCA", ncomponents = 5)
 plotReducedDim(sce_glm_pca, use_dimred = "GLM_PCA", ncomponents = 6:10)
-
