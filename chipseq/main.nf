@@ -727,26 +727,26 @@ if (params.saturation) {
  * STEP 10 Post peak calling processing
  */
 
-/*process chippeakanno {
- *  tag "${macs_peaks_collection[0].baseName}"
- *  publishDir "${params.outdir}/macs/chippeakanno", mode: 'copy'
- *
- *  input:
- *  file macs_peaks_collection from macs_peaks.collect()
- *  file gtf from gtf
- *
- *  output:
- *  file '*.{txt,bed}' into chippeakanno_results
- *
- *  when: REF_macs
- *
- *  script:
- *  filtering = params.blacklist_filtering ? "${params.blacklist}" : "No-filtering"
- *  """
- *  post_peak_calling_processing.r $params.rlocation $REF_macs $filtering $gtf $macs_peaks_collection
- *  """
- *}
- */
+process chippeakanno {
+  tag "${macs_peaks_collection[0].baseName}"
+  publishDir "${params.outdir}/macs/chippeakanno", mode: 'copy'
+
+  input:
+  file macs_peaks_collection from macs_peaks.collect()
+  file gtf from gtf
+
+  output:
+  file '*.{txt,bed}' into chippeakanno_results
+
+  when: REF_macs
+
+  script:
+  filtering = params.blacklist_filtering ? "${params.blacklist}" : "No-filtering"
+  """
+  post_peak_calling_processing.r $params.rlocation $REF_macs $filtering $gtf $macs_peaks_collection
+  """
+}
+
 
 process homer_find_motifs {
    tag "${homer_bed.baseName}"
@@ -778,7 +778,7 @@ process multiqc {
     file ('trimgalore/*') from trimgalore_results.collect()
     file ('samtools/*') from samtools_stats.collect()
     file ('picard/*') from picard_reports.collect()
-    //file ('deeptools/*') from deepTools_multiqc.collect()
+    file ('deeptools/*') from deepTools_multiqc.collect()
     file ('phantompeakqualtools/*') from spp_out_mqc.collect()
     file ('phantompeakqualtools/*') from calculateNSCRSC_results.collect()
 
