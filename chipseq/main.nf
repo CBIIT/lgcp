@@ -292,7 +292,7 @@ if (!REF_macs){
 /*
  * PREPROCESSING - Build BWA index
  */
-if(params.gtf && fasta){
+if(params.gtf && params.fasta){
     process makeBWAindex {
         tag "$fasta"
         label 'process_high'
