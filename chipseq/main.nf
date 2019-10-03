@@ -292,27 +292,24 @@ if (!REF_macs){
 /*
  * PREPROCESSING - Build BWA index
  */
-if(params.gtf && params.fasta){
-    process makeBWAindex {
-        tag "$fasta"
-        label 'process_high'
-        publishDir path: { params.saveReference ? "${params.outdir}/reference_genome" : params.outdir },
-                   saveAs: { params.saveReference ? it : null }, mode: 'copy'
+process makeBWAindex {
+    tag "$fasta"
+    label 'process_high'
+    publishDir path: { params.saveReference ? "${params.outdir}/reference_genome" : params.outdir },
+               saveAs: { params.saveReference ? it : null }, mode: 'copy'
 
-        input:
-        file fasta from fasta
+    input:
+    file fasta from fasta
 
-        output:
-        file "BWAIndex" into bwa_index
+    output:
+    file "BWAIndex" into bwa_index
 
-        script:
-        """
-        bwa index -a bwtsw $fasta
-        mkdir BWAIndex && mv ${fasta}* BWAIndex
-        """
-    }
+    script:
+    """
+    bwa index -a bwtsw $fasta
+    mkdir BWAIndex && mv ${fasta}* BWAIndex
+    """
 }
-
 
 /*
  * STEP 1 - FastQC
