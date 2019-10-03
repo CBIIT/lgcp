@@ -294,7 +294,8 @@ if (!REF_macs){
  */
 if(!params.bwa_index && fasta){
     process makeBWAindex {
-        tag fasta
+        tag "$fasta"
+        label 'process_high'
         publishDir path: { params.saveReference ? "${params.outdir}/reference_genome" : params.outdir },
                    saveAs: { params.saveReference ? it : null }, mode: 'copy'
 
@@ -318,6 +319,7 @@ if(!params.bwa_index && fasta){
  */
 process fastqc {
     tag "$name"
+    label 'process_medium'
     publishDir "${params.outdir}/fastqc", mode: 'copy',
         saveAs: {filename -> filename.indexOf(".zip") > 0 ? "zips/$filename" : "$filename"}
 
@@ -345,6 +347,7 @@ if(params.notrim){
 } else {
     process trim_galore {
         tag "$name"
+        label 'process_long'
         publishDir "${params.outdir}/trim_galore", mode: 'copy',
             saveAs: {filename ->
                 if (filename.indexOf("_fastqc") > 0) "FastQC/$filename"
@@ -383,6 +386,7 @@ if(params.notrim){
  */
 process bwa {
     tag "$prefix"
+    label 'process_high'
     publishDir path: { params.saveAlignedIntermediates ? "${params.outdir}/bwa" : params.outdir }, mode: 'copy',
                saveAs: {filename -> params.saveAlignedIntermediates ? filename : null }
 
@@ -408,6 +412,7 @@ process bwa {
 
 process samtools {
     tag "${bam.baseName}"
+    label 'process_medium'
     publishDir path: "${params.outdir}/bwa", mode: 'copy',
                saveAs: { filename ->
                    if (filename.indexOf(".stats.txt") > 0) "stats/$filename"
@@ -439,6 +444,7 @@ process samtools {
 
  process bwa_mapped {
    tag "${input_files[0].baseName}"
+   label 'process_medium'
    publishDir "${params.outdir}/bwa/mapped", mode: 'copy'
 
    input:
@@ -463,6 +469,7 @@ process samtools {
 
 process picard {
     tag "$prefix"
+    label 'process_medium'
     publishDir "${params.outdir}/picard", mode: 'copy'
 
     input:
@@ -500,6 +507,7 @@ process picard {
 
 process countstat {
     tag "${input[0].baseName}"
+    label 'process_medium'
     publishDir "${params.outdir}/countstat", mode: 'copy'
 
     input:
@@ -522,6 +530,7 @@ process countstat {
 
 process phantompeakqualtools {
   tag "$prefix"
+  label 'process_medium'
   publishDir "${params.outdir}/phantompeakqualtools", mode: 'copy',
               saveAs: {filename -> filename.indexOf(".out") > 0 ? "logs/$filename" : "$filename"}
  
@@ -546,6 +555,7 @@ process phantompeakqualtools {
 
 process calculateNSCRSC {
   tag "${spp_out_list[0].baseName}"
+  label 'process_medium'
   publishDir "${params.outdir}/phantompeakqualtools", mode: 'copy'
  
   input:
@@ -567,7 +577,8 @@ process calculateNSCRSC {
  */
 
 process deepTools {
-tag "${bam[0].baseName}"
+   tag "${bam[0].baseName}"
+   label 'process_medium'
    publishDir "${params.outdir}/deepTools", mode: 'copy'
 
    input:
@@ -596,6 +607,7 @@ tag "${bam[0].baseName}"
 
 process ngsplot {
   tag "${input_bam_files[0].baseName}"
+  label 'process_medium'
   publishDir "${params.outdir}/ngsplot", mode: 'copy'
 
   input:
@@ -635,6 +647,7 @@ process ngsplot {
 
 process macs {
     tag "${bam_for_macs[0].baseName}"
+    label 'process_long'
     publishDir "${params.outdir}/macs", mode: 'copy'
 
     input:
@@ -672,6 +685,7 @@ if (params.saturation) {
 
   process saturation {
      tag "${bam_for_saturation[0].baseName}"
+     label 'process_long'
      publishDir "${params.outdir}/macs/saturation", mode: 'copy'
 
      input:
@@ -703,6 +717,7 @@ if (params.saturation) {
 
   process saturation_r {
      tag "${saturation_results_collection[0].baseName}"
+     label 'process_medium'
      publishDir "${params.outdir}/macs/saturation", mode: 'copy'
 
      input:
@@ -729,6 +744,7 @@ if (params.saturation) {
 
 process chippeakanno {
   tag "${macs_peaks_collection[0].baseName}"
+  label 'process_medium'
   publishDir "${params.outdir}/macs/chippeakanno", mode: 'copy'
 
   input:
@@ -750,6 +766,7 @@ process chippeakanno {
 
 process homer_find_motifs {
    tag "${homer_bed.baseName}"
+   label 'process_medium'
    publishDir "${params.outdir}/macs/homer", mode: 'copy'
 
    input:
