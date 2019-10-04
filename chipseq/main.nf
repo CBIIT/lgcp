@@ -764,22 +764,24 @@ if (params.saturation) {
  *}
  */
 
+
 process homer_find_motifs {
-   tag "${homer_bed.baseName}"
-   label 'process_medium'
-   publishDir "${params.outdir}/macs/homer", mode: 'copy'
+  tag "${homer_bed.baseName}"
+  label 'process_medium'
+  publishDir "${params.outdir}/macs/homer", mode: 'copy'
 
-   input:
-   file homer_bed from macs_narrow_peak_homer
+  input:
+  file homer_bed from macs_narrow_peak_homer
 
-   output:
-   file ("${homer_bed.baseName}") into homer_motifs_results
+  output:
+  file ("${homer_bed.baseName}") into homer_motifs_results
 
-   script:
-   """
-   findMotifsGenome.pl $homer_bed /fdb/igenomes/Homo_sapiens/Ensembl/GRCh37/Sequence/WholeGenomeFasta/genome.fa ./${homer_bed.baseName} -size 200 -len 8,10,12 -mask -preparse -preparsedDir ./preparsed/ -p 4
-   """
+  script:
+  """
+  findMotifsGenome.pl $homer_bed /fdb/igenomes/Homo_sapiens/Ensembl/GRCh37/Sequence/WholeGenomeFasta/genome.fa ./${homer_bed.baseName} -size 200 -len 8,10,12 -mask -preparse -preparsedDir ./preparsed/ -p 4
+  """
 }
+
 
 /*
  * STEP 11 MultiQC
