@@ -14,6 +14,11 @@ library(edgeR)
 
 source("single-cell/single-cell-scater-preprocessing-functions.R")
 
+# load in signatures
+neuro <- read_csv("~/lgcp/rnaseq/analysis-scripts/neuro_reference_vpca_loadings_grch37.csv")
+ar_signature_weights <- read_csv("~/lgcp/rnaseq/analysis-scripts/ar_signature_weights_Mendiratta.csv")
+
+
 sce <- read10xCounts("/Volumes/Group09/CCB/Beshiri/Folders_old/CT35/'Omics_data/single_cell_RNAseq/lineage-tracing-May-2018/CT35_10x_filtered_gbm")
 
 # ADD FEATURE FOR REF ORG HERE!
@@ -79,16 +84,6 @@ reducedDim(sce, "GLM_PCA") <- as.matrix(glmpca_poi_30$factors)
 
 sce_glm_pca <- runUMAP(sce, use_dimred = "GLM_PCA", pca = 30)
 
-# load in signatures
-
-ar_reference_cpm <- read_csv("~/lgcp/rnaseq/analysis-scripts/ar_reference_beltran_cpm_grch37.csv")
-
-neuro_reference_cpm <- read_csv("~/lgcp/rnaseq/analysis-scripts/neuro_reference_beltran_cpm_grch37.csv")
-
-neuro <- read_csv("~/lgcp/rnaseq/analysis-scripts/neuro_reference_vpca_loadings_grch37.csv")
-
-ar_signature_weights <- read_csv("~/lgcp/rnaseq/analysis-scripts/ar_signature_weights_Mendiratta.csv")
-
 barcode_ar_signature_score <- vector(length = ncol(sce_glm_pca))
 for(i in 1:ncol(sce_glm_pca)){
   scored <- data.frame(logcounts = logcounts(sce_glm_pca)[rownames(logcounts(sce_glm_pca)) %in% ar_signature_weights$`Ensemble ID`,i],
@@ -112,11 +107,22 @@ for(i in 1:ncol(sce_glm_pca)){
   barcode_neuro_score[i] <- sum(scored$score)
 }
 
-save.image("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/ct-35-v1.RData")
+# perform graph based clustering
 
+g <- buildSNNGraph(sce_glm_pca, k=10, use.dimred = 'GLM_PCA')
+clust <- igraph::cluster_walktrap(g)$membership
+table(clust)
 
-deg <- findMarkers(sce_glm_pca,
-                   cluster_info$cluster_id,
+colData(sce_glm_pca)$clust <- factor(clust)
+colData(sce_glm_pca)$NE_score <- barcode_neuro_score
+colData(sce_glm_pca)$AR_score <- barcode_ar_signature_score
+
+plotReducedDim(sce_glm_pca, use_dimred = "UMAP", colour_by = "clust")
+plotReducedDim(sce_glm_pca, use_dimred = "UMAP", colour_by = "NE_score")
+plotReducedDim(sce_glm_pca, use_dimred = "UMAP", colour_by = "AR_score")
+
+deg_all <- findMarkers(sce_glm_pca,
+                   sce_glm_pca$clust,
                    direction = "up",
                    pval.type="all") %>% 
   lapply(as.data.frame) %>% 
@@ -124,16 +130,31 @@ deg <- findMarkers(sce_glm_pca,
   bind_rows(.id = "cluster_id") %>% 
   left_join(grch38)
 
-deg %>% 
-  dplyr::filter(FDR < 0.05) %>% 
-  View()
+deg_any <- findMarkers(sce_glm_pca,
+                       sce_glm_pca$clust,
+                       direction = "up",
+                       pval.type="any") %>% 
+  lapply(as.data.frame) %>% 
+  lapply(rownames_to_column, "ensgene") %>% 
+  bind_rows(.id = "cluster_id") %>% 
+  left_join(grch38)
 
-sce_glm_pca$Clusters = factor(cluster_info$cluster_id)
+for(clust_id in unique(deg_all$cluster_id)){
+  file <- paste0("/Volumes/Group05/CCBB/Single-Cell-Bioinformatics-2019-October-03/", "ct-35-1-v1-10x-deg-all-cluster-id-", clust_id, ".csv")
+  deg_all %>% 
+    filter(cluster_id == clust_id) %>% 
+    write_csv(file)
+}
+
+for(clust_id in unique(deg_any$cluster_id)){
+  file <- paste0("/Volumes/Group05/CCBB/Single-Cell-Bioinformatics-2019-October-03/", "ct-35-1-v1-10x-deg-any-cluster-id-", clust_id, ".csv")
+  deg_any %>% 
+    filter(cluster_id == clust_id) %>% 
+    write_csv(file)
+}
 
 
-plotReducedDim(sce, use_dimred = "UMAP")
-plotReducedDim(sce, use_dimred = "PCA")
-
-plotReducedDim(sce_glm_pca, use_dimred = "UMAP")
-plotReducedDim(sce_glm_pca, use_dimred = "GLM_PCA", ncomponents = 5)
-plotReducedDim(sce_glm_pca, use_dimred = "GLM_PCA", ncomponents = 6:10)
+plotReducedDim(sce_glm_pca, use_dimred = "GLM_PCA", ncomponents = c(3,5:7), colour_by = "clust") # 5,7 <- NE; 3,6 <- AR
+plotReducedDim(sce_glm_pca, use_dimred = "GLM_PCA", ncomponents = c(3,6), colour_by = "AR_score")
+plotReducedDim(sce_glm_pca, use_dimred = "GLM_PCA", ncomponents = c(3,6), colour_by = "clust")
+plotReducedDim(sce_glm_pca, use_dimred = "GLM_PCA", ncomponents = c(5,7), colour_by = "NE_score")
