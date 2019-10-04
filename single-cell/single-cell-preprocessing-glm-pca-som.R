@@ -9,6 +9,7 @@ library(ggraph)
 library(tidygraph)
 library(igraph)
 library(Seurat)
+library(edgeR)
 # highly variable gene approach (standard)
 
 source("single-cell/single-cell-scater-preprocessing-functions.R")
@@ -243,6 +244,58 @@ for(i in 1:ncol(sce_glm_pca)){
   
   barcode_neuro_score_count[i] <- sum(scored$score)
 }
+
+colData(sce_glm_pca)$som_id <- cluster_info$som_id
+colData(sce_glm_pca)$cluster_id <- cluster_info$cluster_id
+
+dgelist <- counts(sce_glm_pca) %>% 
+  broom::tidy() %>% 
+  setNames(c("ensgene", "Barcode", "count")) %>% 
+  left_join(cluster_info) %>%  
+  group_by(ensgene,cluster_id) %>% 
+  summarise(count = sum(count)) %>% 
+  spread(cluster_id, count, fill = 0) %>% 
+  column_to_rownames("ensgene") %>% 
+  as.matrix() %>% 
+  edgeR::DGEList() %>% 
+  calcNormFactors()
+
+scored_clusters <- cpm(dgelist, log = T) %>% 
+  as.data.frame() %>% 
+  rownames_to_column("ensgene") %>% 
+  left_join(ar_signature_weights %>% 
+              transmute(ar_weight = `BinReg Coef`,
+                        ensgene = `Ensemble ID`)) %>% 
+  left_join(neuro_joined %>% 
+              transmute(neuro_weight = PC1.v,
+                        ensgene = ID)) %>% 
+  left_join(neuro_reference_cpm %>% 
+              transmute(neuro_reference = log2_cpm_mean,
+                        ensgene = Geneid)) %>% 
+  left_join(ar_reference_cpm %>% 
+              setNames(c("ensgene", "ar_reference"))) %>% 
+  gather(cluster_id,
+         cpm,
+         `1`:`30`) %>% 
+  group_by(cluster_id) %>% 
+  summarise(ar_signature_score = sum(ar_weight*cpm, na.rm = T),
+            neuro_signature_score = sum(neuro_weight*cpm, na.rm = T),
+            ar_correlation = cor(ar_reference, cpm, use = "pairwise.complete.obs", method = "spearman"),
+            neuro_correlation = cor(neuro_reference, cpm, use = "pairwise.complete.obs", method = "spearman"))
+
+mst_pearson_layout %>% 
+  as.data.frame() %>% 
+  setNames(c("mst_x", "mst_y")) %>% 
+  rownames_to_column("som_id") %>%
+  left_join(cluster_info %>% 
+              distinct(som_id, cluster_id) %>% 
+              mutate(som_id = as.character(som_id),
+                     cluster_id = as.character(cluster_id))) %>% 
+  left_join(scored_clusters) %>% 
+  ggplot(aes(mst_x, mst_y, color = neuro_signature_score)) +
+  geom_point() +
+  theme_void()
+
 
 save.image("/Volumes/group05/CCBB/CS024892_Kelly_Beshiri/ct-35-v1.RData")
 
