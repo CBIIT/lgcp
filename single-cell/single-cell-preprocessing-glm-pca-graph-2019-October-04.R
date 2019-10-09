@@ -10,6 +10,9 @@ library(tidygraph)
 library(igraph)
 library(Seurat)
 library(edgeR)
+
+set.seed(8675309)
+
 # highly variable gene approach (standard)
 
 source("single-cell/single-cell-scater-preprocessing-functions.R")
@@ -59,14 +62,6 @@ sce <- scater::normalize(sce)
 ## feature selection
 fit <- trendVar(sce, use.spikes = F)
 dec <- decomposeVar(sce, fit)
-hvg <- rownames(dec[dec$bio > 0, ]) # ~4k genes
-
-## dimensionality reduction
-set.seed(1234)
-sce <- runPCA(sce, 
-              feature_set = hvg)
-
-sce <- runUMAP(sce)
 
 colnames(sce) <- colData(sce)$Barcode
 ranked_genes <- rank_all_genes(sce, "total_counts")
@@ -140,21 +135,16 @@ deg_any <- findMarkers(sce_glm_pca,
   left_join(grch38)
 
 for(clust_id in unique(deg_all$cluster_id)){
-  file <- paste0("/Volumes/Group05/CCBB/Single-Cell-Bioinformatics-2019-October-03/", "ct-35-1-v1-10x-deg-all-cluster-id-", clust_id, ".csv")
+  file <- paste0("/Volumes/Group05/CCBB/Single-Cell-Bioinformatics-2019-October-03/", "ct-35-2-v1-10x-deg-all-cluster-id-", clust_id, ".csv")
   deg_all %>% 
     filter(cluster_id == clust_id) %>% 
     write_csv(file)
 }
 
 for(clust_id in unique(deg_any$cluster_id)){
-  file <- paste0("/Volumes/Group05/CCBB/Single-Cell-Bioinformatics-2019-October-03/", "ct-35-1-v1-10x-deg-any-cluster-id-", clust_id, ".csv")
+  file <- paste0("/Volumes/Group05/CCBB/Single-Cell-Bioinformatics-2019-October-03/", "ct-35-2-v1-10x-deg-any-cluster-id-", clust_id, ".csv")
   deg_any %>% 
     filter(cluster_id == clust_id) %>% 
     write_csv(file)
 }
 
-
-plotReducedDim(sce_glm_pca, use_dimred = "GLM_PCA", ncomponents = c(3,5:7), colour_by = "clust") # 5,7 <- NE; 3,6 <- AR
-plotReducedDim(sce_glm_pca, use_dimred = "GLM_PCA", ncomponents = c(3,6), colour_by = "AR_score")
-plotReducedDim(sce_glm_pca, use_dimred = "GLM_PCA", ncomponents = c(3,6), colour_by = "clust")
-plotReducedDim(sce_glm_pca, use_dimred = "GLM_PCA", ncomponents = c(5,7), colour_by = "NE_score")

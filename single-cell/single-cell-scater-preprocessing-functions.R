@@ -149,3 +149,18 @@ rank_all_genes <- function(sce, total_umi="nUMI"){
   rownames(res)<-gg
   res
 }
+
+tidy_sparse_matrix <- function (x) 
+{
+  s <- Matrix::summary(x)
+  row <- s$i
+  if (!is.null(rownames(x))) {
+    row <- rownames(x)[row]
+  }
+  col <- s$j
+  if (!is.null(colnames(x))) {
+    col <- colnames(x)[col]
+  }
+  ret <- data.frame(row = row, column = col, value = s$x, stringsAsFactors = FALSE)
+  ret
+}
