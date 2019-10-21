@@ -77,6 +77,9 @@ reducedDim(sce, "GLM_PCA") <- as.matrix(glmpca_poi_30$factors)
 
 sce_glm_pca <- runUMAP(sce, use_dimred = "GLM_PCA", pca = 30)
 
+rowData(sce_glm_pca) <- cbind(rowData(sce_glm_pca),
+                              ranked_genes)
+
 barcode_ar_signature_score <- vector(length = ncol(sce_glm_pca))
 for(i in 1:ncol(sce_glm_pca)){
   scored <- data.frame(logcounts = logcounts(sce_glm_pca)[rownames(logcounts(sce_glm_pca)) %in% ar_signature_weights$`Ensemble ID`,i],
