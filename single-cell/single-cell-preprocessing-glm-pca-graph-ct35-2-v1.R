@@ -274,6 +274,38 @@ colData(sce_glm_pca) <- colData(sce_glm_pca) %>%
   column_to_rownames("row_names") %>% 
   DataFrame()
 
+# zmad scoring cells
+
+# calculate mean absolute deviation for each gene across all samples
+median_absolute_deviations <- logcounts(sce_glm_pca) %>% 
+  tidy_sparse_matrix() %>%
+  group_by(row) %>%
+  summarise(median_abs_dev = mad(value),
+            median = median(value))
+
+# calculate modified Z-score by multipling the difference of the cpm_tmm and mean for each gene times 0.6745 (just because), and dividing by the mean absolute deviation
+modified_z_score <- logcounts(sce_glm_pca) %>% 
+  tidy_sparse_matrix() %>%
+  left_join(median_absolute_deviations) %>%
+  mutate(mod_z = (0.6745*(value - median))/median_abs_dev) %>% 
+  select(row, column, mod_z)
+
+fake_cell <- as.character(ncol(sce_glm_pca) + 1)
+
+zmad_sparse <- data.frame(row = names(logcounts(sce_glm_pca)[,1])) %>% 
+  left_join(modified_z_score) %>% 
+  mutate(row = factor(row, levels = names(logcounts(sce_glm_pca)[,1])),
+         column = if_else(is.na(column), fake_cell, column),
+         mod_z = if_else(is.na(mod_z), 0, mod_z),
+         column = factor(column, levels = c(colnames(logcounts(sce_glm_pca)), fake_cell))) %>% 
+  arrange(column) %>% 
+  tidytext::cast_sparse(row = row,
+                        column = column,
+                        value = mod_z)
+
+assay(sce_glm_pca, "zmad") <- zmad_sparse[,colnames(zmad_sparse) != fake_cell]
+
+
 save(sce_glm_pca, file = "/Volumes/Group05/CCBB/Single-Cell-Bioinformatics-2019-October-03/ct-35-2-v1-sce-object.Rdata")
 
 # NE score ranking
