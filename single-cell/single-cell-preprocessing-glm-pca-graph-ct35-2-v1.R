@@ -80,6 +80,15 @@ sce_glm_pca <- runUMAP(sce, use_dimred = "GLM_PCA", pca = 30)
 rowData(sce_glm_pca) <- cbind(rowData(sce_glm_pca),
                               ranked_genes)
 
+rowData(sce_glm_pca) <- rowData(sce_glm_pca) %>% 
+  as.data.frame() %>% 
+  rownames_to_column("row_names") %>% 
+  left_join(cbind(glmpca_poi_30$loadings, glmpca_poi_30$coefX) %>% 
+              rownames_to_column("row_names") %>% 
+              rename("coefX" = "V1")) %>%
+  column_to_rownames("row_names") %>% 
+  DataFrame()
+
 barcode_ar_signature_score <- vector(length = ncol(sce_glm_pca))
 for(i in 1:ncol(sce_glm_pca)){
   scored <- data.frame(logcounts = logcounts(sce_glm_pca)[rownames(logcounts(sce_glm_pca)) %in% ar_signature_weights$`Ensemble ID`,i],
@@ -258,9 +267,11 @@ colData(sce_glm_pca)$full_som_node <- full_som_model$unit.classif
 
 colData(sce_glm_pca) <- colData(sce_glm_pca) %>%
   as.data.frame() %>%
+  rownames_to_column("row_names") %>% 
   left_join(som_results) %>%
   left_join(kmeans_results) %>%
   left_join(split_results) %>%
+  column_to_rownames("row_names") %>% 
   DataFrame()
 
 save(sce_glm_pca, file = "/Volumes/Group05/CCBB/Single-Cell-Bioinformatics-2019-October-03/ct-35-2-v1-sce-object.Rdata")
