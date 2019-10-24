@@ -1,0 +1,20 @@
+library(DropletUtils)
+library(scater)
+library(scran)
+library(annotables)
+library(tidyverse)
+library(glmpca)
+library(kohonen)
+library(ggraph)
+library(tidygraph)
+library(igraph)
+library(Seurat)
+library(edgeR)
+library(msigdbr)
+
+set.seed(8675309)
+source("single-cell/single-cell-scater-preprocessing-functions.R")
+
+# load in signatures
+neuro <- read_csv("~/lgcp/rnaseq/analysis-scripts/neuro_reference_vpca_loadings_grch37.csv")
+ar_signature_weights <- read_csv("~/lgcp/rnaseq/analysis-scripts/ar_signature_weights_Mendiratta.csv")
