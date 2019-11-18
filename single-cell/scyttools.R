@@ -6,21 +6,31 @@ require(methods)
 "
 Usage:
 scyttools.R (-h | --help | --version)
-scyttools.R --normalize_RSEM DIR OUT
-scyttools.R --normalize_featureCounts DIR OUT
+scyttools.R --quality_control DIR OUT
+scyttools.R --dimensionality_reduction RDS OUT
+scyttools.R --cluster_cells RDS OUT
+scyttools.R --trajectory_inference RDS OUT
+scyttools.R --geneset_scoring RDS OUT
+scyttools.R --differential_expression RDS OUT
 
-Description:   This program is a command line interface to edgeR
+Description:   This program is a command line interface to running automated single cell RNA sequencing analysis
 
 Options:
 
---version                  Show the current version.
---normalize_RSEM           Perform filtering and TMM normalization on RSEM quantified RNA seq data
---normalize_featureCounts  Perform filtering and TMM normalization on featureCounts quantified RNA seq data
+--version                     Show the current version.
+--quality_control             Perform quality control and remove cells leveraging the Scater and Scran packages
+--dimensionality_reduction    Perform dimensionality reduction using GLM PCA
+--cluster_cells               Cluster cells using GLM PCA and self-organizing maps
+--trajectory_inference        Perform trajectory inference using monocle version 2
+--geneset_scoring             Score cells and clusters for geneset activity
+--differential_expression     Perform differential expression analysis of clusters
 
 Arguments:
 
-RSEM  Provide directory with RSEM .genes.results file(s)
+DIR   Directory that contains cellranger gene barcode matrix output
 OUT   Provide output file
+RDS   RDS file that contains saved SingleCellExperiment object
+
 
 " -> doc
 
