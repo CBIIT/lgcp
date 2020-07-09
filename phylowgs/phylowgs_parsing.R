@@ -5,24 +5,25 @@ require(methods)
 
 "
 Usage:
-scyttools_quality_control.R (-h | --help | --version)
-scyttools_quality_control.R DIR OUT
+phylowgs_parsing.R (-h | --help | --version)
+phylowgs_parsing.R DIR OUT
 
-Description:   This script performs quality control on 10x genomics scRNA gene barcode matrix data from the cellranger pipeline
+Description:   This script parses phyloWGS output
 
 Options:
 --version       Show the current version.
 
 Arguments:
-DIR    Provide directory where scyttools.args.Rdata file is located
-OUT    Provide output file
+DIR    Provide directory where phyloWGS output is located
+OUT    Provide output directory
 
 " -> doc
 
 
 args <- docopt(doc)
 
-
+dir <- args$DIR
+out <- args$OUT
 
 library(tidyverse)
 library(jsonlite)
@@ -31,15 +32,13 @@ library(tidygraph)
 library(ggraph)
 library(patchwork)
 
-cnv_files <- list.files("cnv_data/",
-                        recursive = T,
-                        full.names = T,
-                        pattern = "cnv_data.txt")
+setwd(dir)
 
-ssm_files <- list.files("ssm_data/",
-                        recursive = T,
-                        full.names = T,
-                        pattern = "ssm_data.txt")
+cnv_tar <- untar("cnv_data.tar",
+                 list = T)
+
+ssm_files <- untar("ssm_data.tar",
+                   list = T)
 
 summary_files <- list.files(pattern = ".summ.json",
                             recursive = T,
@@ -89,8 +88,7 @@ best_trees_list <- lapply(summary_files, function(summary_file){
                         num_cnvs = node$num_cnvs,
                         cellular_prevalence = node$cellular_prevalence) %>%
         mutate(sample_index = paste0("sample_", c(1:nrow(.)))) %>% 
-        nest(c(cellular_prevalence, sample_index),
-             .key = cellular_prevalence)
+        nest(cellular_prevalence = c(cellular_prevalence, sample_index))
     }) %>% 
     bind_rows(.id = "node_id") %>% 
     mutate(tree_id = rep(tree_id$tree_id[1], nrow(.)))
@@ -134,8 +132,7 @@ best_trees_list <- lapply(summary_files, function(summary_file){
              node_id = if_else(node_id == node_to_collapse, as.character(big_brother), node_id)) %>%
       filter(node_id != big_brother) %>%
       bind_rows(node_updated_pops_df %>% 
-                  nest(c(cellular_prevalence, sample_index),
-                       .key = cellular_prevalence)) %>% 
+                  nest(cellular_prevalence = c(cellular_prevalence, sample_index))) %>% 
       mutate(node_id = factor(node_id, levels = c(0:100))) %>% 
       arrange(node_id) %>% 
       mutate(node_id = as.character(node_id))
@@ -144,11 +141,16 @@ best_trees_list <- lapply(summary_files, function(summary_file){
     pruned_alts_df <- pruned_alts_df %>% 
       mutate(node_id = if_else(node_id == node_to_collapse, as.character(big_brother), node_id))
     # update structure_df
+    # update structure_df
     pruned_structure_df <- pruned_structure_df %>% 
       mutate(parent = if_else(parent == node_to_collapse, as.character(big_brother), parent),
-             child = if_else(child == node_to_collapse, as.character(big_brother), as.character(child))) %>% 
-      filter(parent != child) %>% 
-      distinct()
+             child = if_else(child == node_to_collapse, as.character(big_brother), as.character(child))) 
+    
+    if(nrow(pruned_structure_df) > 1){
+      pruned_structure_df <- pruned_structure_df %>% 
+        filter(parent != child) %>% 
+        distinct()
+    }
   }
   
   # identify most terminal node to collapse
@@ -192,8 +194,7 @@ best_trees_list <- lapply(summary_files, function(summary_file){
                node_id = if_else(node_id == node_to_collapse, as.character(big_brother), node_id)) %>%
         filter(node_id != big_brother) %>%
         bind_rows(node_updated_pops_df %>% 
-                    nest(c(cellular_prevalence, sample_index),
-                         .key = cellular_prevalence)) %>% 
+                    nest(cellular_prevalence = c(cellular_prevalence, sample_index))) %>% 
         mutate(node_id = factor(node_id, levels = c(0:100))) %>% 
         arrange(node_id) %>% 
         mutate(node_id = as.character(node_id))
@@ -218,8 +219,7 @@ best_trees_list <- lapply(summary_files, function(summary_file){
                node_id = if_else(node_id == node_to_collapse, as.character(big_brother), node_id)) %>%
         filter(node_id != big_brother) %>%
         bind_rows(node_updated_pops_df %>% 
-                    nest(c(cellular_prevalence, sample_index),
-                         .key = cellular_prevalence)) %>% 
+                    nest(cellular_prevalence = c(cellular_prevalence, sample_index))) %>% 
         mutate(node_id = factor(node_id, levels = c(0:100))) %>% 
         arrange(node_id) %>% 
         mutate(node_id = as.character(node_id))
@@ -230,10 +230,13 @@ best_trees_list <- lapply(summary_files, function(summary_file){
     # update structure_df
     pruned_structure_df <- pruned_structure_df %>% 
       mutate(parent = if_else(parent == node_to_collapse, as.character(big_brother), parent),
-             child = if_else(child == node_to_collapse, as.character(big_brother), as.character(child))) %>% 
-      filter(parent != child) %>% 
-      distinct()
+             child = if_else(child == node_to_collapse, as.character(big_brother), as.character(child))) 
     
+    if(nrow(pruned_structure_df) > 1){
+      pruned_structure_df <- pruned_structure_df %>% 
+        filter(parent != child) %>% 
+        distinct()
+    }
     # update node_to_collapse
     node_to_collapse <- (pruned_populations_df %>% 
                            filter(num_cnvs < 5,
@@ -246,7 +249,7 @@ best_trees_list <- lapply(summary_files, function(summary_file){
     create_layout("tree") %>% 
     mutate(tree_level = factor(y, levels = c(0:max(y))))
   cancer_cell_fraction <- populations_df %>% 
-    unnest() %>% 
+    unnest(cols = c(cellular_prevalence)) %>% 
     mutate(ccf = rep(0, nrow(.)))
   for(tree_level in levels(tree_layout$tree_level)){
     for(node in tree_layout$name[tree_layout$tree_level == tree_level]){
@@ -275,7 +278,7 @@ best_trees_list <- lapply(summary_files, function(summary_file){
     create_layout("tree") %>% 
     mutate(tree_level = factor(y, levels = c(0:max(y))))
   pruned_cancer_cell_fraction <- pruned_populations_df %>% 
-    unnest() %>% 
+    unnest(cols = c(cellular_prevalence)) %>% 
     mutate(ccf = rep(0, nrow(.)))
   for(tree_level in levels(tree_layout$tree_level)){
     for(node in tree_layout$name[tree_layout$tree_level == tree_level]){
@@ -316,46 +319,36 @@ best_trees_list <- lapply(summary_files, function(summary_file){
   
   tree_id <- tree_id %>%
     left_join(structure_df %>%
-                nest(c(parent, child),
-                     .key = structure),
+                nest(structure = c(parent, child)),
               by = "tree_id")  %>%
     left_join(pruned_structure_df %>%
-                nest(c(parent, child),
-                     .key = pruned_structure),
+                nest(pruned_structure = c(parent, child)),
               by = "tree_id")  %>%
     left_join(populations_df %>%
-                nest(c(node_id:cellular_prevalence),
-                     .key = populations),
+                nest(populations = c(node_id:cellular_prevalence)),
               by = "tree_id")  %>% 
     left_join(pruned_populations_df %>%
-                nest(c(node_id:cellular_prevalence),
-                     .key = pruned_populations),
+                nest(pruned_populations = c(node_id:cellular_prevalence)),
               by = "tree_id")  %>% 
     left_join(alts_df %>% 
-                nest(c(node_id:ssm_cnv),
-                     .key = alts),
+                nest(alts = c(node_id:ssm_cnv)),
               by = "tree_id")  %>% 
     left_join(pruned_alts_df %>% 
-                nest(c(node_id:ssm_cnv),
-                     .key = pruned_alts),
+                nest(pruned_alts = c(node_id:ssm_cnv)),
               by = "tree_id") %>% 
     left_join(cancer_cell_fraction %>% 
                 dplyr::select(tree_id, everything()) %>% 
-                nest(c(node_id:ccf),
-                     .key = cancer_cell_fraction),
+                nest(cancer_cell_fraction = c(node_id:ccf)),
               by = "tree_id") %>% 
     left_join(pruned_cancer_cell_fraction %>% 
                 dplyr::select(tree_id, everything()) %>% 
-                nest(c(node_id:ccf),
-                     .key = pruned_cancer_cell_fraction),
+                nest(pruned_cancer_cell_fraction = c(node_id:ccf)),
               by = "tree_id") %>% 
     left_join(shannon_diversity_index %>% 
-                nest(c(sample_index:div_index),
-                     .key = shannon_diversity_index),
+                nest(shannon_diversity_index = c(sample_index:div_index)),
               by = "tree_id") %>% 
     left_join(pruned_shannon_diversity_index %>% 
-                nest(c(sample_index:div_index),
-                     .key = pruned_shannon_diversity_index),
+                nest(pruned_shannon_diversity_index = c(sample_index:div_index)),
               by = "tree_id")
   
   return(tree_id)  
@@ -365,18 +358,16 @@ names(best_trees_list) <- summary_files
 
 best_trees <- best_trees_list %>% 
   bind_rows(.id = "summary_file") %>% 
-  mutate(to_be_separated = str_remove(summary_file, "^\\./13-c-0119_") %>% 
-           str_remove(".summ.json$")) %>% 
-  separate(to_be_separated,
-           c("method", "sample_id"),
-           sep = "/")
+  mutate(sample_id = str_remove(summary_file, ".summ.json$"))
+
+dir.create("alt_tables", showWarnings = F)
+dir.create("phylogency-plots", showWarnings = F)
 
 for(sample in unique(best_trees$sample_id)){
+  cat(sample, "\n")
   plot_trees <- best_trees %>% 
     filter(sample_id == sample)
-  for(method_type in unique(plot_trees$method)){
-    plot_tree <- plot_trees %>% 
-      filter(method == method_type)
+    plot_tree <- plot_trees 
     p1 <- plot_tree$structure[[1]] %>% 
       graph_from_data_frame() %>% 
       as_tbl_graph() %>% 
@@ -405,45 +396,51 @@ for(sample in unique(best_trees$sample_id)){
       ggraph() +
       geom_node_text(aes(label = name), repel = T) + 
       geom_node_point(aes(size = ccf)) +
-      geom_edge_link() +
       theme_void() +
       theme(legend.position = "none")
     
+    if(nrow(plot_tree$pruned_structure[[1]]) > 1){
+      p2 <- p2 +
+        geom_edge_link()
+      }
+    
     p1+p2
     
-    plot_file_out <- paste0("phylogency-plots/", sample, "_", method_type, ".svg")
+    plot_file_out <- paste0("phylogency-plots/", sample, "_", ".svg")
     
     ggsave(plot_file_out, height = 9, width = 16)
     
+    untar("ssm_data.tar", files = paste(sample, "ssm_data.txt", sep = "/"))
+    
     plot_tree$alts[[1]] %>%
       filter(str_detect(ssm_cnv, "^s")) %>%
-      left_join(read_tsv(paste("ssm_data", sample, "ssm_data.txt", sep = "/")),
+      left_join(read_tsv(paste(sample, "ssm_data.txt", sep = "/")),
                 by = c("ssm_cnv" = "id")) %>% 
-      write_csv(paste0("alt_tables/", sample, "_", method_type, "_ssm_table.csv"))
+      write_csv(paste0("alt_tables/", sample, "_ssm_table.csv"))
     
     plot_tree$pruned_alts[[1]] %>%
       filter(str_detect(ssm_cnv, "^s")) %>%
-      left_join(read_tsv(paste("ssm_data", sample, "ssm_data.txt", sep = "/")),
+      left_join(read_tsv(paste(sample, "ssm_data.txt", sep = "/")),
                 by = c("ssm_cnv" = "id")) %>% 
-      write_csv(paste0("alt_tables/", sample, "_", method_type, "_pruned_ssm_table.csv"))
+      write_csv(paste0("alt_tables/", sample, "_pruned_ssm_table.csv"))
+    
+    untar("cnv_data.tar", files = paste(sample, "cnv_data.txt", sep = "/"))
     
     plot_tree$alts[[1]] %>%
       filter(str_detect(ssm_cnv, "^c")) %>%
-      left_join(read_tsv(paste("cnv_data", sample, "cnv_data.txt", sep = "/")),
+      left_join(read_tsv(paste(sample, "cnv_data.txt", sep = "/")),
                 by = c("ssm_cnv" = "cnv")) %>% 
-      write_csv(paste0("alt_tables/", sample, "_", method_type, "_cnv_table.csv"))
+      write_csv(paste0("alt_tables/", sample, "_cnv_table.csv"))
     
     plot_tree$pruned_alts[[1]] %>%
       filter(str_detect(ssm_cnv, "^c")) %>%
-      left_join(read_tsv(paste("cnv_data", sample, "cnv_data.txt", sep = "/")),
+      left_join(read_tsv(paste(sample, "cnv_data.txt", sep = "/")),
                 by = c("ssm_cnv" = "cnv")) %>% 
-      write_csv(paste0("alt_tables/", sample, "_", method_type, "_pruned_cnv_table.csv"))
-    
-  }
+      write_csv(paste0("alt_tables/", sample, "_pruned_cnv_table.csv"))
 }
 
 best_trees %>% 
   unnest(pruned_shannon_diversity_index) %>% 
-  group_by(method, sample_id) %>% 
+  group_by(sample_id) %>% 
   summarize(shannon_index = mean(div_index)) %>% 
   write_csv("shannon-index-table.csv")
