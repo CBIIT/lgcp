@@ -15,7 +15,6 @@ Options:
 
 Arguments:
 DIR    Provide directory where phyloWGS output is located
-OUT    Provide output directory
 
 " -> doc
 
@@ -23,7 +22,6 @@ OUT    Provide output directory
 args <- docopt(doc)
 
 dir <- args$DIR
-out <- args$OUT
 
 library(tidyverse)
 library(jsonlite)
