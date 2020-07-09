@@ -6,7 +6,7 @@ require(methods)
 "
 Usage:
 phylowgs_parsing.R (-h | --help | --version)
-phylowgs_parsing.R DIR OUT
+phylowgs_parsing.R DIR
 
 Description:   This script parses phyloWGS output
 
