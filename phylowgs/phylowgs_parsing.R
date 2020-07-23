@@ -360,6 +360,7 @@ best_trees <- best_trees_list %>%
 
 dir.create("alt_tables", showWarnings = F)
 dir.create("phylogency-plots", showWarnings = F)
+dir.create("populations_tables", showWarnings = F)
 
 for(sample in unique(best_trees$sample_id)){
   cat(sample, "\n")
@@ -435,6 +436,12 @@ for(sample in unique(best_trees$sample_id)){
       left_join(read_tsv(paste(sample, "cnv_data.txt", sep = "/")),
                 by = c("ssm_cnv" = "cnv")) %>% 
       write_csv(paste0("alt_tables/", sample, "_pruned_cnv_table.csv"))
+    
+    plot_tree$cancer_cell_fraction[[1]] %>%
+      write_csv(paste0("populations_tables/", sample, "_populations_table.csv"))
+    
+    plot_tree$cancer_cell_fraction[[1]] %>%
+      write_csv(paste0("populations_tables/", sample, "_pruned_populations_table.csv"))
 }
 
 best_trees %>% 
