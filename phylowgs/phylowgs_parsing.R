@@ -440,7 +440,7 @@ for(sample in unique(best_trees$sample_id)){
     plot_tree$cancer_cell_fraction[[1]] %>%
       write_csv(paste0("populations_tables/", sample, "_populations_table.csv"))
     
-    plot_tree$cancer_cell_fraction[[1]] %>%
+    plot_tree$pruned_cancer_cell_fraction[[1]] %>%
       write_csv(paste0("populations_tables/", sample, "_pruned_populations_table.csv"))
 }
 
