@@ -1,0 +1,40 @@
+Patient.ID	PTEN.status	ERG.status	chr18q
+P05	Not intact	Positive	Not loss
+P09	Not intact	Positive	Not loss
+P13	Not intact	Negative	Loss
+P17	Not intact	Negative	Not loss
+P21	Intact	Negative	Not loss
+P25	Intact	Negative	Not loss
+P29	Not intact	Negative	Not loss
+P33	Not intact	Positive	Not loss
+P37	Not intact	Positive	Not loss
+P04	Intact	Negative	Not loss
+P08	Not intact	Negative	Loss
+P12	Not intact	Negative	Not loss
+P16	Intact	Negative	Not loss
+P20	Intact	Negative	Not loss
+P24	Not intact	Positive	Not loss
+P28	Not intact	Positive	Loss
+P32	Not intact	Positive	Not loss
+P36	Intact	Negative	Not loss
+P40	Not intact	Positive	Not loss
+P07	Not intact	Positive	Not loss
+P11	Intact	Negative	Not loss
+P15	Not intact	Positive	Not loss
+P19	Intact	Negative	Not loss
+P23	Intact	Negative	Loss
+P27	Intact	Positive	Not loss
+P31	Intact	Negative	Not loss
+P35	Not intact	Positive	Loss
+P39	Intact	Negative	Loss
+P43	Not intact	Negative	Not loss
+P10	Not intact	Positive	Not loss
+P14	Intact	Negative	Not loss
+P18	Not intact	Positive	Not loss
+P22	Not intact	Positive	Not loss
+P26	Not intact	Positive	Not loss
+P30	Intact	Negative	Not loss
+P34	Not intact	Negative	Not loss
+P38	Intact	Negative	Not loss
+P42	Not intact	Negative	Not loss
+P46	Not intact	Negative	Loss
