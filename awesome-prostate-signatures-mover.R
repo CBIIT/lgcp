@@ -16,3 +16,6 @@ read_tsv("/Volumes/Group05/CCBB/CS025602_PDO_PDX/metadata-from-lab/PRAD.norm_Bel
 
 read_csv("/Volumes/Group05/CCBB/Single-Cell-Bioinformatics-2019-October-03/signature-table-2023-May-01.csv") %>% 
   write_csv("awesome-prostate-signatures/signature-table-2023-May-01.csv")
+
+read_csv("~/lgcp/rnaseq/analysis-scripts/neuro_reference_vpca_loadings_grch37.csv") %>% 
+  write.csv("awesome-prostate-signatures/neuro_reference_vpca_loadings_grch37.csv")
