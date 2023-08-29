@@ -11,10 +11,11 @@ module load nextflow
 module load singularity
 module load graphviz
 
-nextflow run nf-core/atacseq --input design.csv \
+nextflow run nf-core/atacseq -r dev --input /data/capaldobj/lgcp/senatorov-et-al-2023/design.csv \
 -profile biowulf \
 --aligner bwa \
 --genome GRCh37 \
+--igenomes_base 's3://ngi-igenomes/igenomes' \
 --read_length 75 \
 --narrow_peak \
 --outdir '/data/LGCP/freedman-chip/lucap-only-k27ac-results/'
