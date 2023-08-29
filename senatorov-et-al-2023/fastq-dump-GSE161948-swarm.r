@@ -29,12 +29,16 @@ read_csv(
 # WT_INPUT_REP2,BLA203A30_S21_L002_R1_001.fastq.gz,,,
 # WT_INPUT_REP3,BLA203A31_S21_L003_R1_001.fastq.gz,,,
 
-read_csv("SraRunTable.txt") %>%
-    left_join(data.frame("file_name" = list.files("sra-files"),
-        "full_file_name" = list.files("sra-files", full.names = T)) %>%
+read_csv(
+    "senatorov-et-al-2023/GSE161948-PRJNA679976-SraRunTable.csv") %>%
+    left_join(data.frame("file_name" = list.files(
+        "/data/LGCP/freedman-chip/sra-files"),
+        "full_file_name" = list.files(
+            "/data/LGCP/freedman-chip/sra-files",
+            full.names = T)) %>%
         mutate(Run = str_remove(file_name, ".fastq.gz") %>%
             str_remove("_[1|2]"))) %>%
-    select(Run, file_name, chip_antibody, chip_antibody_vendor, `Sample Name`, everything()) %>%
+    select(Run, file_name, ChIP_antibody, `Sample Name`, everything()) %>%
     as.data.frame() %>%
     left_join(acc_to_sample_df,
     by = c("GEO_Accession (exp)" = "GEO_Accession..exp.")) %>%
@@ -44,5 +48,5 @@ read_csv("SraRunTable.txt") %>%
         fastq_1 = full_file_name,
         fastq_2 = "",
         replicate = 1) %>%
-    write_csv("design.csv")
+    write_csv("design-GSE161948-PRJNA679976.csv")
 
