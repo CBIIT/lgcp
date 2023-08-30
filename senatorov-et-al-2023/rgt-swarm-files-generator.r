@@ -29,6 +29,14 @@ paste0(bam_files,
     write_csv("senatorov-et-al-2023/grch37-2-hg19-bam-converter.swarm",
         col_names = F)
 
+# reindex bam files
+# swarm -f senatorov-et-al-2023/index-hg19-bam-converter.swarm -t 4 -g 16 --module samtools --partition ccr
+paste0("samtools index ",
+    str_replace(bam_files, "sorted.bam", "hg19.sorted.bam")) %>%
+    data.frame(command = .) %>%
+    write_csv("senatorov-et-al-2023/index-hg19-bam-converter.swarm",
+        col_names = F)
+
 # swarm -f footprints.swarm -t 8 -g 64 --module rgt --partition ccr
 
 paste0("rgt-hint footprinting ",

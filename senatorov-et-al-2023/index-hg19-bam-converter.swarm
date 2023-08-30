@@ -1,0 +1,15 @@
+samtools index /data/LGCP/freedman-chip/lucap-only-k27ac-results/bwa/merged_library/K27ac_UW_PDX_136_REP1.mLb.clN.hg19.sorted.bam
+samtools index /data/LGCP/freedman-chip/lucap-only-k27ac-results/bwa/merged_library/K27ac_UW_PDX_141_REP1.mLb.clN.hg19.sorted.bam
+samtools index /data/LGCP/freedman-chip/lucap-only-k27ac-results/bwa/merged_library/K27ac_UW_PDX_167_REP1.mLb.clN.hg19.sorted.bam
+samtools index /data/LGCP/freedman-chip/lucap-only-k27ac-results/bwa/merged_library/K27ac_UW_PDX_170-2_REP1.mLb.clN.hg19.sorted.bam
+samtools index /data/LGCP/freedman-chip/lucap-only-k27ac-results/bwa/merged_library/K27ac_UW_PDX_170-3_REP1.mLb.clN.hg19.sorted.bam
+samtools index /data/LGCP/freedman-chip/lucap-only-k27ac-results/bwa/merged_library/K27ac_UW_PDX_189-3_REP1.mLb.clN.hg19.sorted.bam
+samtools index /data/LGCP/freedman-chip/lucap-only-k27ac-results/bwa/merged_library/K27ac_UW_PDX_189-4_REP1.mLb.clN.hg19.sorted.bam
+samtools index /data/LGCP/freedman-chip/lucap-only-k27ac-results/bwa/merged_library/K27ac_UW_PDX_35_REP1.mLb.clN.hg19.sorted.bam
+samtools index /data/LGCP/freedman-chip/lucap-only-k27ac-results/bwa/merged_library/K27ac_UW_PDX_58_REP1.mLb.clN.hg19.sorted.bam
+samtools index /data/LGCP/freedman-chip/lucap-only-k27ac-results/bwa/merged_library/K27ac_UW_PDX_70_REP1.mLb.clN.hg19.sorted.bam
+samtools index /data/LGCP/freedman-chip/lucap-only-k27ac-results/bwa/merged_library/K27ac_UW_PDX_77_REP1.mLb.clN.hg19.sorted.bam
+samtools index /data/LGCP/freedman-chip/lucap-only-k27ac-results/bwa/merged_library/K27ac_UW_PDX_78_REP1.mLb.clN.hg19.sorted.bam
+samtools index /data/LGCP/freedman-chip/lucap-only-k27ac-results/bwa/merged_library/K27ac_UW_PDX_81_REP1.mLb.clN.hg19.sorted.bam
+samtools index /data/LGCP/freedman-chip/lucap-only-k27ac-results/bwa/merged_library/K27ac_UW_PDX_86-2_REP1.mLb.clN.hg19.sorted.bam
+samtools index /data/LGCP/freedman-chip/lucap-only-k27ac-results/bwa/merged_library/K27ac_UW_PDX_92_REP1.mLb.clN.hg19.sorted.bam
