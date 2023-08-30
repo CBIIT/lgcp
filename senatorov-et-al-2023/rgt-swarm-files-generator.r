@@ -11,6 +11,24 @@ bam_files <- list.files(
     full.names = T
 )
 
+for (sample_file in peak_files) {
+    read_tsv(sample_file,
+        col_names = F) %>%
+    mutate(X1 = paste0("chr", X1)) %>%
+    write_tsv(str_replace(sample_file, "peaks.narrowPeak", "peaks.hg19.narrowPeak"))
+}
+
+# rgt only supports hg19, so adding "chr" in front of all contigs is req
+# run code below, then manually paste in samtools command
+# samtools reheader -c "sed -e 's/SN:\([0-9XY]\+\)/SN:chr\1/' -e 's/SN:MT/SN:chrM/'" h37.bam > hg19.bam
+# swarm -f grch37-2-hg19-bam-converter.swarm -t 8 -g 64 --module samtools --partition ccr
+paste0(bam_files,
+    " > ",
+    str_replace(bam_files, "sorted.bam", "hg19.sorted.bam")) %>%
+    data.frame(command = .) %>%
+    write_csv("senatorov-et-al-2023/grch37-2-hg19-bam-converter.swarm",
+        col_names = F)
+
 # swarm -f footprints.swarm -t 8 -g 64 --module rgt --partition ccr
 
 paste0("rgt-hint footprinting ",
@@ -20,9 +38,9 @@ paste0("rgt-hint footprinting ",
     basename(bam_files) %>%
         str_remove("_REP1.*$"),
     " --histone ",
-    bam_files,
+    str_replace(bam_files, "sorted.bam", "hg19.sorted.bam"),
     " ",
-    peak_files) %>%
+    str_replace(peak_files, "peaks.narrowPeak", "peaks.hg19.narrowPeak")) %>%
     data.frame(command = .) %>%
     write_csv("senatorov-et-al-2023/rgt-footprinting.swarm",
         col_names = F)
