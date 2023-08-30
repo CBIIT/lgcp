@@ -41,12 +41,23 @@ read_csv(
     select(Run, file_name, ChIP_antibody, `Sample Name`, everything()) %>%
     as.data.frame() %>%
     left_join(acc_to_sample_df,
-    by = c("GEO_Accession (exp)" = "GEO_Accession..exp.")) %>%
-    filter(str_detect(sample, "27[A|a]")) %>%
+        by = c("GEO_Accession (exp)")) %>%
     select(sample, full_file_name) %>%
+    mutate(pivot_names = if_else(str_detect(full_file_name, "_1.fastq.gz"),
+        "fastq_1", "fastq_2")) %>%
+    pivot_wider(names_from = pivot_names,
+        values_from = full_file_name) %>%
     transmute(sample = sample,
-        fastq_1 = full_file_name,
-        fastq_2 = "",
-        replicate = 1) %>%
-    write_csv("design-GSE161948-PRJNA679976.csv")
-
+        fastq_1 = fastq_1,
+        fastq_2 = fastq_2,
+        antibody = str_remove(sample, "LuCaP_.*_"),
+        control = str_replace(sample, antibody, "INPUT")) %>%
+    mutate(antibody = if_else(antibody == "INPUT",
+        "",
+        toupper(antibody)),
+        control = if_else(antibody == "",
+            "",
+            control)) %>%
+    arrange(desc(antibody)) %>%
+    filter(!str_detect(sample, "_35_")) %>% # remove 35, no input available
+    write_csv("senatorov-et-al-2023/design-GSE161948-PRJNA679976.csv")
