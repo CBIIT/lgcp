@@ -4,7 +4,7 @@ peak_files <- "/data/LGCP/freedman-chip/lucap-only-k27ac-results/bwa/merged_libr
 
 bam_files <- list.files(
     "/data/LGCP/freedman-chip/lucap-only-k27ac-results/bwa/merged_library",
-    pattern = "sorted.bam$",
+    pattern = "clN.sorted.bam$",
     full.names = T
 )
 
@@ -27,7 +27,7 @@ paste0(bam_files,
         col_names = F)
 
 # reindex bam files
-# swarm -f senatorov-et-al-2023/index-hg19-bam-converter.swarm -t 4 -g 16 --module samtools --partition ccr
+# swarm -f lgcp/senatorov-et-al-2023/index-hg19-bam-converter.swarm -t 4 -g 16 --module samtools --partition ccr
 paste0("samtools index ",
     str_replace(bam_files, "sorted.bam", "hg19.sorted.bam")) %>%
     data.frame(command = .) %>%
@@ -50,7 +50,7 @@ paste0("rgt-hint footprinting ",
     write_csv("senatorov-et-al-2023/rgt-footprinting.swarm",
         col_names = F)
 
-# swarm -f motif-matching.swarm -t 8 -g 64 --module rgt --partition ccr
+# swarm -f lgcp/senatorov-et-al-2023/rgt-motifmatching.swarm -t 8 -g 64 --module rgt --partition ccr
 
 # rgt-motifanalysis matching --organism=hg19 --output-location=./MotifMatching --input-files ./Footprints/adeno_diff.bed
 
