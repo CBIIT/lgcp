@@ -13,8 +13,11 @@ module load graphviz
 
 nextflow run nf-core/chipseq -r 2.0.0 --input /data/capaldobj/lgcp/senatorov-et-al-2023/design-GSE161948-PRJNA679976.csv \
 -profile biowulf \
+-resume \
 --aligner bwa \
 --genome GRCh37 \
 --igenomes_base 's3://ngi-igenomes/igenomes' \
+--narrow_peak \
 --read_length 150 \
+--skip_spp \
 --outdir '/data/LGCP/freedman-chip/lucap-chipseq-results/'

@@ -1,9 +1,6 @@
 library(tidyverse)
 
-peak_files <- list.files(
-    "/data/LGCP/freedman-chip/lucap-only-k27ac-results/bwa/merged_library/macs2/narrow_peak",
-    pattern = "peaks.narrowPeak",
-    full.names = T)
+peak_files <- "/data/LGCP/freedman-chip/lucap-only-k27ac-results/bwa/merged_library/macs2/narrow_peak/consensus/consensus_peaks.mLb.clN.bed"
 
 bam_files <- list.files(
     "/data/LGCP/freedman-chip/lucap-only-k27ac-results/bwa/merged_library",
@@ -15,7 +12,7 @@ for (sample_file in peak_files) {
     read_tsv(sample_file,
         col_names = F) %>%
     mutate(X1 = paste0("chr", X1)) %>%
-    write_tsv(str_replace(sample_file, "peaks.narrowPeak", "peaks.hg19.narrowPeak"))
+    write_tsv(str_replace(sample_file, "consensus_peaks", "consensus_peaks.hg19"))
 }
 
 # rgt only supports hg19, so adding "chr" in front of all contigs is req
@@ -37,7 +34,7 @@ paste0("samtools index ",
     write_csv("senatorov-et-al-2023/index-hg19-bam-converter.swarm",
         col_names = F)
 
-# swarm -f footprints.swarm -t 8 -g 64 --module rgt --partition ccr
+# swarm -f lgcp/senatorov-et-al-2023/rgt-footprinting.swarm -t 8 -g 64 --module rgt --partition ccr
 
 paste0("rgt-hint footprinting ",
     "--organism=hg19 ",
@@ -48,7 +45,7 @@ paste0("rgt-hint footprinting ",
     " --histone ",
     str_replace(bam_files, "sorted.bam", "hg19.sorted.bam"),
     " ",
-    str_replace(peak_files, "peaks.narrowPeak", "peaks.hg19.narrowPeak")) %>%
+    str_replace(peak_files, "consensus_peaks", "consensus_peaks.hg19")) %>%
     data.frame(command = .) %>%
     write_csv("senatorov-et-al-2023/rgt-footprinting.swarm",
         col_names = F)
