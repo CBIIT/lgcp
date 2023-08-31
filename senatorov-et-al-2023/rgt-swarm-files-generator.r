@@ -61,7 +61,9 @@ paste0("rgt-motifanalysis matching ",
     "--organism=hg19 ",
     "--output-location=/data/LGCP/freedman-chip/lucap-only-k27ac-results/MotifMatching ",
     "--input-files ",
-    list.files("/data/LGCP/freedman-chip/lucap-only-k27ac-results/Footprints/")) %>%
+    list.files("/data/LGCP/freedman-chip/lucap-only-k27ac-results/Footprints/",
+        pattern = ".bed",
+        full.names = T)) %>%
     data.frame(command = .) %>%
     write_csv("senatorov-et-al-2023/rgt-motifmatching.swarm",
         col_names = F)
