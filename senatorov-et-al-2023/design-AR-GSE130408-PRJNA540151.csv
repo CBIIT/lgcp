@@ -1,0 +1,16 @@
+sample,fastq_1,fastq_2,replicate
+AR_UW_PDX_35,/data/LGCP/freedman-chip/sra-files/SRR11856222.fastq.gz,,1
+AR_UW_PDX_70,/data/LGCP/freedman-chip/sra-files/SRR11856223.fastq.gz,,1
+AR_UW_PDX_77,/data/LGCP/freedman-chip/sra-files/SRR11856224.fastq.gz,,1
+AR_UW_PDX_58,/data/LGCP/freedman-chip/sra-files/SRR11856225.fastq.gz,,1
+AR_UW_PDX_78,/data/LGCP/freedman-chip/sra-files/SRR11856226.fastq.gz,,1
+AR_UW_PDX_81,/data/LGCP/freedman-chip/sra-files/SRR11856227.fastq.gz,,1
+AR_UW_PDX_86-2,/data/LGCP/freedman-chip/sra-files/SRR11856228.fastq.gz,,1
+AR_UW_PDX_92,/data/LGCP/freedman-chip/sra-files/SRR11856229.fastq.gz,,1
+AR_UW_PDX_136,/data/LGCP/freedman-chip/sra-files/SRR11856230.fastq.gz,,1
+AR_UW_PDX_141,/data/LGCP/freedman-chip/sra-files/SRR11856231.fastq.gz,,1
+AR_UW_PDX_167,/data/LGCP/freedman-chip/sra-files/SRR11856232.fastq.gz,,1
+AR_UW_PDX_170-2,/data/LGCP/freedman-chip/sra-files/SRR11856233.fastq.gz,,1
+AR_UW_PDX_170-3,/data/LGCP/freedman-chip/sra-files/SRR11856234.fastq.gz,,1
+AR_UW_PDX_189-3,/data/LGCP/freedman-chip/sra-files/SRR11856235.fastq.gz,,1
+AR_UW_PDX_189-4,/data/LGCP/freedman-chip/sra-files/SRR11856236.fastq.gz,,1
