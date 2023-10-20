@@ -18,4 +18,4 @@ nextflow run nf-core/chipseq -r 2.0.0 --input /data/capaldobj/lgcp/senatorov-et-
 --igenomes_base 's3://ngi-igenomes/igenomes' \
 --narrow_peak \
 --read_length 75 \
---outdir '/data/capaldobj/incoming-nih-dme/CS035088-chip-seq-ilya-hnf1a/chipseq-results/'
+--outdir '/data/capaldobj/incoming-nih-dme/CS035088-chip-seq-ilya-hnf1a/chipseq-grch37-results/'
