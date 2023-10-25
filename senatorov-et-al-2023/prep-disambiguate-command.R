@@ -18,7 +18,7 @@ human_df %>%
   mutate(sample_id = str_remove(sample_id,
     ".mLb.clN.sorted.bam"),
          command = paste0("ngs_disambiguate -s ",
-         sample_id, " -o ngs_disambiguated -a star ",
+         sample_id, " -o ngs_disambiguated -a bwa ",
                           bam_file_human,
                           " ",
                           bam_file_mouse)) %>%
