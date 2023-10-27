@@ -48,60 +48,72 @@ motif_matches <- list.files(
     "score",
     "strand"))
 
-motif_matches_list <- motif_matches %>% 
-  setNames(list.files("lucap-h3k27ac/MotifMatching/")) %>% 
-  bind_rows(.id = "sample_id") %>% 
+motif_matches_list <- motif_matches %>%
+  setNames(list.files(
+    paste0("/data/capaldobj/incoming-nih-dme/CS035088-chip-seq-ilya-hnf1a/",
+        "chipseq-grch37-results/MotifMatching/")
+  )) %>%
+  bind_rows(.id = "sample_id") %>%
   pivot_wider(names_from = sample_id,
-              values_from = score) %>% 
+              values_from = score) %>%
   split(.$motif_id)
 
-hnf1a_counts <- read_tsv("/Volumes/Group05/CCBB/CS035088-chip-seq-ilya-hnf1a/chipseq-results/bwa/mergedLibrary/macs2/narrowPeak/consensus/HNF1A/HNF1A.consensus_peaks.featureCounts.txt",
+hnf1a_counts <- read_tsv(
+    paste0("/data/capaldobj/incoming-nih-dme/CS035088-chip-seq-ilya-hnf1a/",
+        "chipseq-grch37-results/bwa/mergedLibrary/macs2/narrowPeak/consensus/",
+        "HNF1A/HNF1A.consensus_peaks.featureCounts.txt"),
          skip = 1)
 
-hnf1a_features <- read_tsv("/Volumes/Group05/CCBB/CS035088-chip-seq-ilya-hnf1a/chipseq-results/bwa/mergedLibrary/macs2/narrowPeak/consensus/HNF1A/HNF1A.consensus_peaks.annotatePeaks.txt")
+hnf1a_features <- read_tsv(
+    paste0("/data/capaldobj/incoming-nih-dme/CS035088-chip-seq-ilya-hnf1a/",
+        "chipseq-grch37-results/bwa/mergedLibrary/macs2/narrowPeak/consensus/",
+        "HNF1A/HNF1A.consensus_peaks.annotatePeaks.txt"))
 
-h3k27ac_counts <- read_tsv("/Volumes/Group05/CCBB/CS035088-chip-seq-ilya-hnf1a/chipseq-results/bwa/mergedLibrary/macs2/narrowPeak/consensus/H3K27Ac/H3K27Ac.consensus_peaks.featureCounts.txt",
+h3k27ac_counts <- read_tsv(
+    paste0("/data/capaldobj/incoming-nih-dme/CS035088-chip-seq-ilya-hnf1a/",
+        "chipseq-grch37-results/bwa/mergedLibrary/macs2/narrowPeak/consensus/",
+        "H3K27Ac/H3K27Ac.consensus_peaks.featureCounts.txt"),
                            skip = 1)
 
-h3k27ac_features <- read_tsv("/Volumes/Group05/CCBB/CS035088-chip-seq-ilya-hnf1a/chipseq-results/bwa/mergedLibrary/macs2/narrowPeak/consensus/H3K27Ac/H3K27Ac.consensus_peaks.annotatePeaks.txt")
+h3k27ac_features <- read_tsv(
+    paste0("/data/capaldobj/incoming-nih-dme/CS035088-chip-seq-ilya-hnf1a/",
+        "chipseq-grch37-results/bwa/mergedLibrary/macs2/narrowPeak/consensus/",
+        "H3K27Ac/H3K27Ac.consensus_peaks.annotatePeaks.txt"))
 
-hnf1a.dis_counts <- read_tsv("/Volumes/group05/CCBB/CS035088-chip-seq-ilya-hnf1a/ngs_disambiguated/HNF1A.grch37.consensus_peaks.featureCounts.txt",
-                             skip = 1)
-
-h3k27ac.dis_counts <- read_tsv("/Volumes/group05/CCBB/CS035088-chip-seq-ilya-hnf1a/H3K27Ac.grch37.consensus_peaks.featureCounts.txt",
-                             skip = 1)
-
-
-hnf1a_dge_list <- DGEList(counts = hnf1a_counts[,str_detect(colnames(hnf1a_counts), ".bam")],
-                          samples = data.frame(file_name = colnames(hnf1a_counts)[str_detect(colnames(hnf1a_counts), ".bam")]) %>% 
-                            mutate(sample_id = str_remove(file_name, "_HNF1A.mLb.clN.sorted.bam"),
-                                   model_id = c("170",
-                                                "23.1",
-                                                "23.1",
-                                                "170",
-                                                "23.1",
-                                                "23.1",
-                                                "170",
-                                                "170",
-                                                "23.1",
-                                                "23.1"),
-                                   hnf1a_status = c("lo",
-                                                    "hi",
-                                                    "lo",
-                                                    "lo",
-                                                    "hi",
-                                                    "hi",
-                                                    "hi",
-                                                    "hi",
-                                                    "lo",
-                                                    "lo"),
-                                   replicate_id = paste0("r", c(1,1,2,2,3,2,2,1,3,1)),
-                                   group_id = paste0(model_id, "_", hnf1a_status)),
-                          genes = hnf1a_counts[,!str_detect(colnames(hnf1a_counts), ".bam")] %>% 
-                            select(Geneid, Length) %>%
-                            left_join(hnf1a_features,
-                                      by = c("Geneid" = "PeakID (cmd=annotatePeaks.pl HNF1A.consensus_peaks.bed genome.fa -gid -gtf genes.gtf -cpu 6)"))
-                          )
+hnf1a_dge_list <- DGEList(counts = hnf1a_counts[,
+    str_detect(colnames(hnf1a_counts), ".bam")],
+    samples = data.frame(file_name = colnames(
+        hnf1a_counts)[str_detect(colnames(hnf1a_counts), ".bam")]) %>%
+        mutate(sample_id = str_remove(file_name, "_HNF1A.mLb.clN.sorted.bam"),
+        model_id = c("170",
+            "23.1",
+            "23.1",
+            "170",
+            "23.1",
+            "23.1",
+            "170",
+            "170",
+            "23.1",
+            "23.1"),
+        hnf1a_status = c("lo",
+            "hi",
+            "lo",
+            "lo",
+            "hi",
+            "hi",
+            "hi",
+            "hi",
+            "lo",
+            "lo"),
+            replicate_id = paste0("r", c(1,1,2,2,3,2,2,1,3,1)), 
+            group_id = paste0(model_id, "_", hnf1a_status)),
+            genes = hnf1a_counts[,
+                !str_detect(colnames(hnf1a_counts), ".bam")] %>%
+                select(Geneid, Length) %>%
+                left_join(hnf1a_features,
+                    by = c("Geneid" = "PeakID (cmd=annotatePeaks.pl HNF1A.consensus_peaks.bed genome.fa -gid -gtf genes.gtf -cpu 6)")
+                    )
+    )
 
 pdxos <- hnf1a_dge_list[filterByExpr(hnf1a_dge_list, group = hnf1a_dge_list$samples$group_id),]
 pdxos <- calcNormFactors(pdxos)
