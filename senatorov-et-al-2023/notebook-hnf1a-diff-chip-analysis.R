@@ -85,55 +85,59 @@ hnf1a_dge_list <- DGEList(counts = hnf1a_counts[,
     samples = data.frame(file_name = colnames(
         hnf1a_counts)[str_detect(colnames(hnf1a_counts), ".bam")]) %>%
         mutate(sample_id = str_remove(file_name, "_HNF1A.mLb.clN.sorted.bam"),
-        model_id = c("170",
-            "23.1",
-            "23.1",
-            "170",
-            "23.1",
-            "23.1",
-            "170",
-            "170",
-            "23.1",
-            "23.1"),
-        hnf1a_status = c("lo",
-            "hi",
-            "lo",
-            "lo",
-            "hi",
-            "hi",
-            "hi",
-            "hi",
-            "lo",
-            "lo"),
-            replicate_id = paste0("r", c(1,1,2,2,3,2,2,1,3,1)), 
+        model_id = if_else(str_detect(sample_id, "170"),
+          "170",
+          "23.1"),
+        hnf1a_status = if_else(str_detect(sample_id, "170.2|M"), "lo", "hi"),
+            replicate_id = case_when(sample_id %in% c("170.2",
+                "H1",
+                "M1",
+                "170.3T") ~ "r1",
+              sample_id %in% c("170.2r2",
+                "M1r2",
+                "H1r2",
+                "170.3r2") ~ "r2",
+              T ~ "r3"),
             group_id = paste0(model_id, "_", hnf1a_status)),
             genes = hnf1a_counts[,
                 !str_detect(colnames(hnf1a_counts), ".bam")] %>%
                 select(Geneid, Length) %>%
                 left_join(hnf1a_features,
-                    by = c("Geneid" = "PeakID (cmd=annotatePeaks.pl HNF1A.consensus_peaks.bed genome.fa -gid -gtf genes.gtf -cpu 6)")
+                    by = c("Geneid" =
+                      "PeakID (cmd=annotatePeaks.pl HNF1A.consensus_peaks.bed genome.fa -gid -gtf genes.gtf -cpu 6)")
                     )
     )
 
-pdxos <- hnf1a_dge_list[filterByExpr(hnf1a_dge_list, group = hnf1a_dge_list$samples$group_id),]
+hnf1a_dge_list <- hnf1a_dge_list[,
+  hnf1a_dge_list$samples$sample_id %in%
+    c("M1r2",
+      "H2r2",
+      "M2r2",
+      "H1r2")]
+
+pdxos <- hnf1a_dge_list[filterByExpr(hnf1a_dge_list,
+  group = hnf1a_dge_list$samples$group_id), ]
+
 pdxos <- calcNormFactors(pdxos)
 
-prcomp(t(cpm(pdxos, log = T)))$x %>% 
-  as.data.frame() %>% 
-  rownames_to_column("file_name") %>% 
-  left_join(pdxos$samples) %>% 
+prcomp(t(cpm(pdxos, log = T)))$x %>%
+  as.data.frame() %>%
+  rownames_to_column("file_name") %>%
+  left_join(pdxos$samples) %>%
   ggplot(aes(PC1, PC2)) +
   geom_point() +
   geom_label(aes(label = sample_id, fill = replicate_id))
 
-design <- model.matrix(~0 + hnf1a_status + model_id + replicate_id,
+design <- model.matrix(~0 + hnf1a_status + replicate_id,
                        data = pdxos$samples)
 dge_list <- estimateDisp(pdxos, design = design)
 fit <- glmQLFit(dge_list, design)
 
-hi_vs_lo_paired <- topTags(glmQLFTest(fit, contrast = c(1,-1,0,0,0)), n = Inf)$table 
+hi_vs_lo_paired <- topTags(glmQLFTest(fit,
+  contrast = c(1, -1, 0)),
+  n = Inf)$table
 
-hi_vs_lo_paired %>% 
+hi_vs_lo_paired %>%
   ggplot(aes(FDR)) +
   geom_histogram(binwidth = 0.05)
 
@@ -163,27 +167,3 @@ cpm(pdxos, log = T) %>%
   ggplot(aes(group_id, expression)) +
   geom_point() +
   ggrepel::geom_label_repel(aes(label = replicate_id))
-
-design <- model.matrix(~0 + group_id + replicate_id,
-                       data = pdxos$samples)
-dge_list <- estimateDisp(pdxos, design = design)
-fit <- glmQLFit(dge_list, design)
-
-hi_vs_lo_170 <- topTags(glmQLFTest(fit, contrast = c(1,-1,0,0,0,0)), n = Inf)$table 
-hi_vs_lo_23.1 <- topTags(glmQLFTest(fit, contrast = c(0,0,1,-1,0,0)), n = Inf)$table 
-
-list("paired" = hi_vs_lo_paired,
-     "lucap_23.1" = hi_vs_lo_23.1,
-     "lucap_170" = hi_vs_lo_170) %>% 
-  bind_rows(.id = "model_id") %>% 
-  ggplot(aes(FDR)) +
-  geom_histogram(binwidth = 0.05) +
-  facet_wrap(~model_id)
-
-list("paired" = hi_vs_lo_paired,
-     "lucap_23.1" = hi_vs_lo_23.1,
-     "lucap_170" = hi_vs_lo_170) %>% 
-  bind_rows(.id = "model_id") %>% 
-  ggplot(aes(logFC, -log10(FDR))) +
-  geom_point() +
-  facet_wrap(~model_id)
