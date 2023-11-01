@@ -37,6 +37,10 @@ register(param)
 
 set.seed(8675309)
 
+###############################################################################
+#### read in motif enrichments ################################################
+###############################################################################
+
 motif_matches <- list.files(
     paste0("/data/capaldobj/incoming-nih-dme/CS035088-chip-seq-ilya-hnf1a/",
         "chipseq-grch37-results/MotifMatching/"),
@@ -57,6 +61,10 @@ motif_matches_list <- motif_matches %>%
   pivot_wider(names_from = sample_id,
               values_from = score) %>%
   split(.$motif_id)
+
+###############################################################################
+#### read in counts ###########################################################
+###############################################################################
 
 hnf1a_counts <- read_tsv(
     paste0("/data/capaldobj/incoming-nih-dme/CS035088-chip-seq-ilya-hnf1a/",
@@ -79,6 +87,10 @@ h3k27ac_features <- read_tsv(
     paste0("/data/capaldobj/incoming-nih-dme/CS035088-chip-seq-ilya-hnf1a/",
         "chipseq-grch37-results/bwa/mergedLibrary/macs2/narrowPeak/consensus/",
         "H3K27Ac/H3K27Ac.consensus_peaks.annotatePeaks.txt"))
+
+###############################################################################
+#### hnf1a diff bind ##########################################################
+###############################################################################
 
 hnf1a_dge_list <- DGEList(counts = hnf1a_counts[,
     str_detect(colnames(hnf1a_counts), ".bam")],
@@ -136,6 +148,78 @@ fit <- glmQLFit(dge_list, design)
 hi_vs_lo_paired <- topTags(glmQLFTest(fit,
   contrast = c(1, -1, 0)),
   n = Inf)$table
+
+###############################################################################
+#### h3k27ac diff bind ########################################################
+###############################################################################
+
+h3k27ac_dge_list <- DGEList(counts = h3k27ac_counts[,
+  str_detect(colnames(h3k27ac_counts), ".bam")],
+  samples = data.frame(file_name = colnames(
+        h3k27ac_counts)[str_detect(colnames(h3k27ac_counts), ".bam")]) %>%
+        mutate(sample_id = str_remove(file_name, "_H3K27Ac.mLb.clN.sorted.bam"),
+        model_id = if_else(str_detect(sample_id, "170"),
+          "170",
+          "23.1"),
+        hnf1a_status = if_else(str_detect(sample_id, "170.2|M"), "lo", "hi"),
+            replicate_id = case_when(sample_id %in% c("170.2",
+                "H1",
+                "M1",
+                "170.3T") ~ "r1",
+              sample_id %in% c("170.2r2",
+                "M1r2",
+                "H1r2",
+                "170.3r2") ~ "r2",
+              T ~ "r3"),
+            group_id = paste0(model_id, "_", hnf1a_status)),
+  genes = h3k27ac_counts[,
+                !str_detect(colnames(h3k27ac_counts), ".bam")] %>%
+                select(Geneid, Length) %>%
+                left_join(h3k27ac_features,
+                    by = c("Geneid" =
+                      "PeakID (cmd=annotatePeaks.pl H3K27Ac.consensus_peaks.bed genome.fa -gid -gtf genes.gtf -cpu 6)")
+                    ))
+
+h3k27ac_dge_list <- h3k27ac_dge_list[filterByExpr(h3k27ac_dge_list,
+  group = h3k27ac_dge_list$samples$group_id), ]
+
+h3k27ac_dge_list <- calcNormFactors(h3k27ac_dge_list)
+
+prcomp(t(cpm(h3k27ac_dge_list, log = T)))$x %>%
+  as.data.frame() %>%
+  rownames_to_column("file_name") %>%
+  left_join(h3k27ac_dge_list$samples) %>%
+  ggplot(aes(PC1, PC2)) +
+  geom_point() +
+  geom_label(aes(label = sample_id, fill = replicate_id))
+
+h3k27ac_design <- model.matrix(~0 + hnf1a_status + model_id + replicate_id,
+                       data = h3k27ac_dge_list$samples)
+h3k27ac_dge_list <- estimateDisp(h3k27ac_dge_list, design = h3k27ac_design)
+h3k27ac_fit <- glmQLFit(h3k27ac_dge_list, h3k27ac_design)
+
+hi_vs_lo_h3k27ac_paired <- topTags(glmQLFTest(h3k27ac_fit,
+  contrast = c(1, -1, 0, 0, 0)),
+  n = Inf)$table
+
+h3k27ac_design_split <- model.matrix(~0 + group_id + replicate_id,
+                       data = h3k27ac_dge_list$samples)
+h3k27ac_dge_list_split <- estimateDisp(h3k27ac_dge_list,
+  design = h3k27ac_design_split)
+h3k27ac_fit_split <- glmQLFit(h3k27ac_dge_list_split,
+  h3k27ac_design_split)
+
+hi_vs_lo_h3k27ac_170 <- topTags(glmQLFTest(h3k27ac_fit_split,
+  contrast = c(1, -1, 0, 0, 0, 0)),
+  n = Inf)$table
+
+hi_vs_lo_h3k27ac_23.1 <- topTags(glmQLFTest(h3k27ac_fit_split,
+  contrast = c(0, 0, 1, -1, 0, 0)),
+  n = Inf)$table
+
+###############################################################################
+#### plots ####################################################################
+###############################################################################
 
 hi_vs_lo_paired %>%
   ggplot(aes(FDR)) +
