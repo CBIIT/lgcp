@@ -127,6 +127,26 @@ hnf1a_dge_list <- hnf1a_dge_list[,
       "M2r2",
       "H1r2")]
 
+# hnf1a dbgap submission
+
+hnf1a_dge_list$counts %>%
+  as.data.frame() %>%
+  bind_cols(hnf1a_dge_list$genes[, "Geneid"]) %>%
+  setNames(colnames(.) %>%
+    str_remove(".mLb.clN.sorted.bam")) %>%
+  remove_rownames() %>%
+  column_to_rownames("...5") %>%
+  write.csv("/data/capaldobj/incoming-nih-dme/CS035088-chip-seq-ilya-hnf1a/hnf1a-counts.csv")
+
+hnf1a_dge_list$samples %>%
+    rownames_to_column("RNASEQ.ID") %>%
+  transmute(file_id = str_remove(RNASEQ.ID, ".mLb.clN.sorted.bam"),
+            model_id = if_else(group == "23.1_hi",
+                "HNF1A+ LuCaP 23.1",
+                "LuCaP 23.1")) %>%
+  write_csv("/data/capaldobj/incoming-nih-dme/CS035088-chip-seq-ilya-hnf1a/hnf1a-file-key.csv")
+
+
 pdxos <- hnf1a_dge_list[filterByExpr(hnf1a_dge_list,
   group = hnf1a_dge_list$samples$group_id), ]
 
@@ -179,6 +199,57 @@ h3k27ac_dge_list <- DGEList(counts = h3k27ac_counts[,
                     by = c("Geneid" =
                       "PeakID (cmd=annotatePeaks.pl H3K27Ac.consensus_peaks.bed genome.fa -gid -gtf genes.gtf -cpu 6)")
                     ))
+
+h3k27ac_dge_list <- h3k27ac_dge_list[,
+  !h3k27ac_dge_list$samples$sample_id %in%
+    c("H2",
+      "M2",
+      "H1",
+      "M1")]
+
+# hnf1a dbgap submission
+
+h3k27ac_dge_list$counts %>%
+  as.data.frame() %>%
+  bind_cols(h3k27ac_dge_list$genes[, "Geneid"]) %>%
+  setNames(colnames(.) %>%
+    str_remove(".mLb.clN.sorted.bam")) %>%
+  remove_rownames() %>%
+  column_to_rownames("...9") %>%
+  write.csv("/data/capaldobj/incoming-nih-dme/CS035088-chip-seq-ilya-hnf1a/h3k27ac-counts.csv")
+
+h3k27ac_dge_list$samples %>%
+    rownames_to_column("RNASEQ.ID") %>%
+  transmute(file_id = str_remove(RNASEQ.ID, ".mLb.clN.sorted.bam"),
+            model_id = case_when(model_id == "23.1" & hnf1a_status == "hi" ~ "HNF1A+ LuCaP 23.1",
+              model_id == "23.1" & hnf1a_status != "hi" ~ "LuCaP 23.1",
+              model_id != "23.1" & hnf1a_status == "hi" ~ "LuCaP 170.3",
+              model_id != "23.1" & hnf1a_status != "hi" ~ "LuCaP 170.2")) %>%
+  write_csv("/data/capaldobj/incoming-nih-dme/CS035088-chip-seq-ilya-hnf1a/h3k27ac-file-key.csv")
+
+# fix md5 file
+
+(read_csv("design-hnf1a-chip.csv") %>%
+  filter(!str_detect(sample, "^M1_|^H1_|^M2_|^H2_")) %>%
+  pivot_longer(starts_with("fastq"), names_to = "fastq_id", values_to = "file_name") %>%
+  mutate(file_name = str_remove(file_name,
+    "/data/capaldobj/incoming-nih-dme/CS035088-chip-seq-ilya-hnf1a//")))$file_name
+
+read_tsv("md5sum-chip-seq.txt",
+  col_names = F) %>%
+  separate(X1,
+    c("hash",
+      "file_name"),
+    sep = 34,
+    remove = F) %>%
+    filter(file_name %in%
+      (read_csv("design-hnf1a-chip.csv") %>%
+  filter(!str_detect(sample, "^M1_|^H1_|^M2_|^H2_")) %>%
+  pivot_longer(starts_with("fastq"), names_to = "fastq_id", values_to = "file_name") %>%
+  mutate(file_name = str_remove(file_name,
+    "/data/capaldobj/incoming-nih-dme/CS035088-chip-seq-ilya-hnf1a//")))$file_name
+) %>% select(X1) %>%
+write_tsv("md5sum-chip-seq.txt", col_names = F)
 
 h3k27ac_dge_list <- h3k27ac_dge_list[filterByExpr(h3k27ac_dge_list,
   group = h3k27ac_dge_list$samples$group_id), ]
